@@ -199,55 +199,63 @@ if page == "Upload & Detect":
             help="The system will extract key fields, query the fraud graph, and return a decision."
         )
 
+        # Optional: hint the backend (or leave empty to auto-classify)
+        col_dt1, col_dt2 = st.columns([1,1])
+        with col_dt1:
+            doc_type_hint = st.selectbox(
+                "Document type (optional)",
+                options=["", "health", "auto", "property"],
+                index=0,
+                help="Leave empty to let the backend classifier decide."
+            )
+            doc_type_hint = doc_type_hint or None
+        with col_dt2:
+            classify_if_missing = st.toggle("Auto-classify if missing", value=True)
+
         if uploaded_file:
-            with st.spinner("Reading document & extracting claim fields using LLM..."):
-                extracted = extract_fields_from_pdf(uploaded_file)
+            with st.spinner("Reading document & extracting claim fields from backend..."):
+                backend_resp = extract_fields_from_pdf(
+                    uploaded_file,
+                    doc_type=doc_type_hint,
+                    classify_if_missing=classify_if_missing
+                )
 
-            st.markdown("### 📑 Extracted Claim Details")
-            st.json(extracted)
+            st.markdown("### 📑 Backend Response")
+            st.json(backend_resp)
 
-            with st.spinner("Running graph-based fraud detection via Neo4j..."):
-                result = check_fraud_with_graph(extracted)
-
-            st.session_state["last_claim"] = extracted
-            st.session_state["last_result"] = result
-
-            is_fraud = result["is_fraudulent"]
-            score = result["fraud_score"]
-
-            st.markdown("### 🧠 Decision")
-            if is_fraud:
-                st.error(f"🚨 This claim is flagged as **FRAUDULENT** (Risk Score: {score})")
+            # Surface errors clearly
+            if isinstance(backend_resp, dict) and backend_resp.get("error"):
+                st.error(f"Backend error: {backend_resp['error']}")
+                if "detail" in backend_resp:
+                    st.caption(str(backend_resp["detail"]))
             else:
-                st.success(f"✅ This claim appears **LEGITIMATE** (Risk Score: {score})")
+                # happy path: backend schema
+                extracted = backend_resp.get("result", {})
+                st.markdown("### ✅ Extracted Claim Details (result)")
+                st.json(extracted)
 
-            st.caption("Risk score is a confidence indicator derived from graph + LLM signals.")
+                # keep for later steps
+                st.session_state["last_claim"] = extracted
 
-            # Rules / Signals
-            st.markdown("#### 🔎 Key Signals")
-            for r in result["rules_triggered"]:
-                st.markdown(f"- {r}")
+                # dummy graph scoring (your existing mock)
+                with st.spinner("Running graph-based fraud detection via Neo4j..."):
+                    result = check_fraud_with_graph(extracted)
+                st.session_state["last_result"] = result
 
-    
-    st.sidebar.markdown('<hr style="margin:15px 0;border-color:#1e293b;">', unsafe_allow_html=True)
-    st.sidebar.caption("🧠 Powered by LLM + Neo4j Graph Intelligence")
-    st.markdown("---")
+                is_fraud = result["is_fraudulent"]
+                score = result["fraud_score"]
 
-    # 🔥 Q&A for this specific claim (on same page)
-    st.markdown("### 💬 Ask about this claim")
+                st.markdown("### 🧠 Decision")
+                if is_fraud:
+                    st.error(f"🚨 This claim is flagged as **FRAUDULENT** (Risk Score: {score})")
+                else:
+                    st.success(f"✅ This claim appears **LEGITIMATE** (Risk Score: {score})")
 
-    if st.session_state["last_claim"] is None:
-        st.info("Upload a document first to ask why it is flagged or how the decision was made.")
-    else:
-        user_q = st.text_input(
-            "Example: *Why is this claim fraudulent?*  |  *Which fields look suspicious?*",
-            key="claim_qa_box"
-        )
-        if user_q:
-            with st.spinner("Generating explanation from LLM using claim + graph context..."):
-                answer = explain_fraud(st.session_state["last_claim"], user_q)
-            st.markdown("#### 🔍 Explanation")
-            st.write(answer)
+                st.caption("Risk score is a confidence indicator derived from graph + LLM signals.")
+
+                st.markdown("#### 🔎 Key Signals")
+                for r in result["rules_triggered"]:
+                    st.markdown(f"- {r}")
 
 
 # ---------- PAGE 2: DASHBOARD ----------

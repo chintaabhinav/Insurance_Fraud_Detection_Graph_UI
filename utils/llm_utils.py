@@ -1,26 +1,54 @@
-import random
-import textwrap
+import os
+import json
+import requests
+from typing import Any, Dict, Optional
+from dotenv import load_dotenv
 
-def extract_fields_from_pdf(file) -> dict:
+load_dotenv()
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080")
+
+def extract_fields_from_pdf(file, doc_type: Optional[str] = None, classify_if_missing: bool = True) -> Dict[str, Any]:
     """
-    TEMP: Mock LLM extraction.
-    Replace this with real PDF → LLM extraction later.
+    Send the uploaded PDF to FastAPI /v1/extract and return the parsed JSON.
+    `file` is a Streamlit UploadedFile.
     """
-    # In real logic: read PDF, send to LLM, parse fields
-    return {
-        "Claim ID": "C" + str(random.randint(1000, 9999)),
-        "Policy Holder": "John Doe",
-        "Policy ID": "P-789456",
-        "Claim Amount": "$12,500",
-        "Incident Type": "Vehicle Accident",
-        "Region": "California",
+    if file is None:
+        return {"error": "no file provided"}
+
+    # Build URL with query params
+    url = f"{BACKEND_URL}/v1/extract"
+    params = {}
+    if doc_type:
+        params["doc_type"] = doc_type
+    params["classify_if_missing"] = "true" if classify_if_missing else "false"
+
+    # Reset pointer (Streamlit may have read this already)
+    file.seek(0)
+
+    files = {
+        "file": (file.name or "document.pdf", file, "application/pdf")
     }
 
+    try:
+        resp = requests.post(url, params=params, files=files, timeout=60)
+    except requests.RequestException as e:
+        return {"error": f"request_failed: {e}"}
+
+    # Normalize response
+    try:
+        data = resp.json()
+    except json.JSONDecodeError:
+        return {"error": f"invalid_json_from_backend (status={resp.status_code})", "text": resp.text}
+
+    if resp.status_code != 200:
+        # pass backend detail up to UI
+        return {"error": f"backend_{resp.status_code}", "detail": data.get("detail", data)}
+
+    return data  # expected schema: {doc_type, model, result, usage, cost_estimate}
+
 def explain_fraud(claim_data: dict, user_question: str) -> str:
-    """
-    TEMP: Mock explanation using claim_data.
-    Later: call LLM with graph evidence + claim details.
-    """
+    # unchanged dummy
+    import textwrap
     base_reason = textwrap.dedent(f"""
     Based on the graph analysis and claim details:
 
@@ -28,19 +56,14 @@ def explain_fraud(claim_data: dict, user_question: str) -> str:
     - The claim amount **{claim_data.get('Claim Amount', 'N/A')}** is unusual for similar incidents.
     - Connections between claimant, agent, and service providers match known fraud patterns.
     """)
-
     if "why" in user_question.lower():
         return base_reason + "\nOverall, these patterns increase the fraud likelihood for this claim."
     else:
         return "I analyze historical links, unusual patterns, amounts, and relationships in the Neo4j graph to justify the decision."
 
 def chatbot_answer(user_message: str) -> str:
-    """
-    TEMP: Simple rule-based chatbot.
-    Later: plug in LLM or RAG.
-    """
+    # unchanged dummy
     msg = user_message.lower()
-
     if "fraud" in msg and "how" in msg:
         return (
             "Our system detects fraud by combining:\n"
