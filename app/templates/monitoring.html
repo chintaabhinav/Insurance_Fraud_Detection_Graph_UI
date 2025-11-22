@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <!-- System Health Cards -->
+    <div class="glass-card rounded-2xl p-6 text-center">
+        <h3 class="text-slate-400 text-sm font-medium mb-2">CPU Usage</h3>
+        <div class="relative w-32 h-32 mx-auto flex items-center justify-center">
+            <svg class="w-full h-full transform -rotate-90">
+                <circle cx="64" cy="64" r="56" stroke="currentColor" stroke-width="8" fill="transparent"
+                    class="text-slate-700" />
+                <circle cx="64" cy="64" r="56" stroke="currentColor" stroke-width="8" fill="transparent"
+                    class="text-blue-500" stroke-dasharray="351.86" stroke-dashoffset="100" />
+            </svg>
+            <span class="absolute text-2xl font-bold text-white">45%</span>
+        </div>
+    </div>
+
+    <div class="glass-card rounded-2xl p-6 text-center">
+        <h3 class="text-slate-400 text-sm font-medium mb-2">Memory Usage</h3>
+        <div class="relative w-32 h-32 mx-auto flex items-center justify-center">
+            <svg class="w-full h-full transform -rotate-90">
+                <circle cx="64" cy="64" r="56" stroke="currentColor" stroke-width="8" fill="transparent"
+                    class="text-slate-700" />
+                <circle cx="64" cy="64" r="56" stroke="currentColor" stroke-width="8" fill="transparent"
+                    class="text-purple-500" stroke-dasharray="351.86" stroke-dashoffset="80" />
+            </svg>
+            <span class="absolute text-2xl font-bold text-white">62%</span>
+        </div>
+    </div>
+
+    <div class="glass-card rounded-2xl p-6 text-center">
+        <h3 class="text-slate-400 text-sm font-medium mb-2">API Latency</h3>
+        <h1 class="text-4xl font-bold text-emerald-400 mt-4">124<span class="text-lg text-slate-500 ml-1">ms</span></h1>
+        <p class="text-xs text-slate-500 mt-2">Avg over last 5 mins</p>
+    </div>
+
+    <div class="glass-card rounded-2xl p-6 text-center">
+        <h3 class="text-slate-400 text-sm font-medium mb-2">Active Threads</h3>
+        <h1 class="text-4xl font-bold text-white mt-4">8</h1>
+        <p class="text-xs text-slate-500 mt-2">Workers online</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- LLM Analytics -->
+    <div class="glass-card rounded-2xl p-6 lg:col-span-2">
+        <h3 class="text-lg font-semibold text-white mb-6">LLM Token Usage & Cost</h3>
+        <div class="h-72 w-full">
+            <canvas id="llmChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Live Logs -->
+    <div class="glass-card rounded-2xl p-6 flex flex-col h-[400px]">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-white">Live Logs</h3>
+            <span class="flex h-2 w-2 relative">
+                <span
+                    class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+        </div>
+        <div class="flex-grow bg-slate-950/50 rounded-xl p-4 overflow-y-auto font-mono text-xs space-y-2 border border-slate-800"
+            id="log-container">
+            <div class="text-slate-400"><span class="text-emerald-500">[INFO]</span> 14:23:01 - Backend service started
+            </div>
+            <div class="text-slate-400"><span class="text-blue-500">[DEBUG]</span> 14:23:05 - Connected to Neo4j DB
+            </div>
+            <div class="text-slate-400"><span class="text-emerald-500">[INFO]</span> 14:24:12 - Request received
+                /v1/extract</div>
+            <div class="text-slate-400"><span class="text-yellow-500">[WARN]</span> 14:24:15 - LLM response time > 2s
+            </div>
+            <div class="text-slate-400"><span class="text-emerald-500">[INFO]</span> 14:25:00 - Health check passed
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // LLM Chart
+    const ctxLLM = document.getElementById('llmChart').getContext('2d');
+    new Chart(ctxLLM, {
+        type: 'bar',
+        data: {
+            labels: ['10:00', '11:00', '12:00', '13:00', '14:00'],
+            datasets: [{
+                label: 'Tokens',
+                data: [1200, 1900, 3000, 2500, 1800],
+                backgroundColor: '#38bdf8',
+                yAxisID: 'y',
+            }, {
+                label: 'Cost ($)',
+                data: [0.04, 0.06, 0.10, 0.08, 0.05],
+                borderColor: '#f59e0b',
+                type: 'line',
+                yAxisID: 'y1',
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                y: { position: 'left', grid: { color: 'rgba(255, 255, 255, 0.05)' } },
+                y1: { position: 'right', grid: { display: false } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+
+    // Mock Log Stream
+    const logContainer = document.getElementById('log-container');
+    const logTypes = [
+        { type: 'INFO', color: 'text-emerald-500' },
+        { type: 'WARN', color: 'text-yellow-500' },
+        { type: 'ERROR', color: 'text-red-500' }
+    ];
+
+    setInterval(() => {
+        const now = new Date().toLocaleTimeString();
+        const logType = logTypes[Math.floor(Math.random() * logTypes.length)];
+        const msg = `Mock log message generated at ${now}`;
+
+        const div = document.createElement('div');
+        div.className = 'text-slate-400';
+        div.innerHTML = `<span class="${logType.color}">[${logType.type}]</span> ${now} - ${msg}`;
+
+        logContainer.appendChild(div);
+        logContainer.scrollTop = logContainer.scrollHeight;
+
+        if (logContainer.children.length > 50) logContainer.removeChild(logContainer.firstChild);
+    }, 3000);
+</script>
+{% endblock %}

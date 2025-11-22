@@ -1,0 +1,605 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Main Container: Full Height relative to main content area -->
+<div
+    class="relative w-full h-[calc(100vh-10rem)] flex overflow-hidden rounded-2xl border border-black/5 dark:border-white/10 bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm shadow-2xl transition-colors duration-300">
+
+    <!-- INITIAL STATE: Upload Form (Centered Overlay) -->
+    <div id="initial-upload-view"
+        class="absolute inset-0 z-30 overflow-y-auto bg-white/90 dark:bg-slate-950/90 backdrop-blur-md transition-all duration-500">
+        <div class="min-h-full flex items-center justify-center p-4">
+            <div
+                class="w-full max-w-2xl space-y-6 p-8 bg-white/50 dark:bg-slate-900/50 rounded-3xl border border-black/5 dark:border-white/5 shadow-2xl backdrop-blur-xl my-auto transition-colors duration-300">
+                <div class="text-center">
+                    <h1
+                        class="text-4xl font-bold text-slate-900 dark:text-white mb-3 bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
+                        Upload & Detect</h1>
+                    <p class="text-base text-slate-600 dark:text-slate-400">Upload a claim document to begin the fraud
+                        detection pipeline.</p>
+                </div>
+
+                <div
+                    class="glass-card rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-500 transition-colors group relative overflow-hidden">
+                    <label for="fileInput"
+                        class="cursor-pointer flex flex-col items-center justify-center w-full py-12">
+                        <div id="upload-placeholder"
+                            class="flex flex-col items-center transition-opacity duration-300 pointer-events-none">
+                            <div
+                                class="w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg shadow-blue-500/10">
+                                <i class="fa-solid fa-cloud-arrow-up text-3xl text-blue-500 dark:text-blue-400"></i>
+                            </div>
+                            <span class="text-lg font-medium text-slate-700 dark:text-white">Click to upload PDF</span>
+                            <span class="text-sm text-slate-500 mt-2">Supported formats: PDF (Max 10MB)</span>
+                        </div>
+                        <div id="file-info"
+                            class="hidden flex flex-col items-center justify-center w-full px-4 text-center">
+                            <i class="fa-solid fa-file-pdf text-5xl text-red-500 mb-4 drop-shadow-lg"></i>
+                            <span id="filename"
+                                class="text-lg text-slate-900 dark:text-white font-medium text-center truncate w-full max-w-[80%] block">filename.pdf</span>
+                            <button id="remove-file" type="button"
+                                class="mt-4 px-4 py-2 rounded-full bg-slate-200 dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors pointer-events-auto border border-black/5 dark:border-white/10 z-40 relative">
+                                Change File
+                            </button>
+                        </div>
+                    </label>
+                    <input type="file" class="hidden" id="fileInput" accept=".pdf">
+                </div>
+
+                <div
+                    class="flex items-center justify-between bg-slate-100/50 dark:bg-slate-800/50 p-4 rounded-xl border border-black/5 dark:border-white/5 transition-colors duration-300">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        </div>
+                        <div class="text-left">
+                            <p class="text-sm font-medium text-slate-900 dark:text-white">Auto-Classification</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Automatically detect document type</p>
+                        </div>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="autoClassify" class="sr-only peer" checked>
+                        <div
+                            class="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500">
+                        </div>
+                    </label>
+                </div>
+
+                <button id="analyzeBtn"
+                    class="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-lg shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                    <span>Analyze Document</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ANALYSIS VIEW: Split Screen -->
+
+    <!-- Left Panel: PDF Viewer -->
+    <div id="left-panel"
+        class="relative w-1/2 h-full border-r border-black/5 dark:border-white/10 bg-slate-100 dark:bg-slate-900 transition-all duration-500 ease-in-out flex-shrink-0">
+        <iframe id="pdf-viewer" class="w-full h-full border-none" src=""></iframe>
+    </div>
+
+    <!-- Toggle Button (Independent of Panels) -->
+    <button id="toggle-btn"
+        class="hidden absolute top-1/2 left-1/2 z-50 w-8 h-8 -ml-4 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg hover:bg-blue-500 transition-all duration-500 ease-in-out border border-white dark:border-slate-900">
+        <i id="toggle-icon" class="fa-solid fa-chevron-left"></i>
+    </button>
+
+    <!-- Right Panel: Dashboard -->
+    <div id="right-panel"
+        class="flex-1 h-full flex flex-col bg-white/50 dark:bg-slate-950/30 min-w-0 transition-all duration-500">
+
+        <!-- SECTION 1: Metrics (Fixed Height) -->
+        <div
+            class="h-24 border-b border-black/5 dark:border-white/10 p-4 flex items-center bg-white/50 dark:bg-slate-900/50 transition-colors duration-300">
+            <div class="grid grid-cols-4 gap-3 w-full">
+                <!-- Metric 1 -->
+                <div class="glass-card rounded-xl p-2 flex items-center gap-3 min-w-0">
+                    <div
+                        class="w-8 h-8 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 flex-shrink-0">
+                        <i class="fa-solid fa-robot text-xs"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
+                            Model</p>
+                        <div id="metric-model" class="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            <div class="h-3 w-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mt-1"></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Metric 2 -->
+                <div class="glass-card rounded-xl p-2 flex items-center gap-3 min-w-0">
+                    <div
+                        class="w-8 h-8 rounded-lg bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400 flex-shrink-0">
+                        <i class="fa-solid fa-coins text-xs"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">Cost
+                        </p>
+                        <div id="metric-cost" class="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            <div class="h-3 w-12 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mt-1"></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Metric 3 -->
+                <div class="glass-card rounded-xl p-2 flex items-center gap-3 min-w-0">
+                    <div
+                        class="w-8 h-8 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 flex-shrink-0">
+                        <i class="fa-solid fa-bolt text-xs"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
+                            Tokens</p>
+                        <div id="metric-tokens" class="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            <div class="h-3 w-10 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mt-1"></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Metric 4 -->
+                <div class="glass-card rounded-xl p-2 flex items-center gap-3 min-w-0">
+                    <div
+                        class="w-8 h-8 rounded-lg bg-orange-500/10 dark:bg-orange-500/20 flex items-center justify-center text-orange-600 dark:text-orange-400 flex-shrink-0">
+                        <i class="fa-solid fa-stopwatch text-xs"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
+                            Latency</p>
+                        <div id="metric-time" class="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            <div class="h-3 w-8 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mt-1"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 2: Stages Stepper (Fixed Height) -->
+        <div
+            class="h-20 border-b border-black/5 dark:border-white/10 px-6 flex items-center justify-center bg-slate-50/50 dark:bg-slate-900/20 transition-colors duration-300">
+            <div class="flex items-center w-full relative">
+                <!-- Connecting Line -->
+                <div class="absolute top-1/2 left-0 w-full h-0.5 bg-slate-200 dark:bg-slate-700 -z-10"></div>
+
+                <!-- Steps -->
+                <button class="step-btn group relative flex flex-col items-center gap-1 flex-1"
+                    data-stage="classification">
+                    <div
+                        class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 border-4 border-white dark:border-slate-900 flex items-center justify-center text-slate-400 shadow-lg transition-all ring-offset-2 ring-offset-white dark:ring-offset-slate-900">
+                        <i class="fa-solid fa-file-signature text-[10px]"></i>
+                    </div>
+                    <span class="text-[10px] font-medium text-slate-500">Classify</span>
+                </button>
+
+                <button class="step-btn group relative flex flex-col items-center gap-1 flex-1" data-stage="extraction">
+                    <div
+                        class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 border-4 border-white dark:border-slate-900 flex items-center justify-center text-slate-400 shadow-lg transition-all">
+                        <i class="fa-solid fa-file-code text-[10px]"></i>
+                    </div>
+                    <span class="text-[10px] font-medium text-slate-500">Extract</span>
+                </button>
+
+                <button class="step-btn group relative flex flex-col items-center gap-1 flex-1" data-stage="mapping">
+                    <div
+                        class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 border-4 border-white dark:border-slate-900 flex items-center justify-center text-slate-400 shadow-lg transition-all">
+                        <i class="fa-solid fa-diagram-project text-[10px]"></i>
+                    </div>
+                    <span class="text-[10px] font-medium text-slate-500">Map</span>
+                </button>
+
+                <button class="step-btn group relative flex flex-col items-center gap-1 flex-1" data-stage="graph">
+                    <div
+                        class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 border-4 border-white dark:border-slate-900 flex items-center justify-center text-slate-400 shadow-lg transition-all">
+                        <i class="fa-solid fa-circle-nodes text-[10px]"></i>
+                    </div>
+                    <span class="text-[10px] font-medium text-slate-500">Graph</span>
+                </button>
+
+                <button class="step-btn group relative flex flex-col items-center gap-1 flex-1" data-stage="result">
+                    <div
+                        class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 border-4 border-white dark:border-slate-900 flex items-center justify-center text-slate-400 shadow-lg transition-all">
+                        <i class="fa-solid fa-flag-checkered text-[10px]"></i>
+                    </div>
+                    <span class="text-[10px] font-medium text-slate-500">Result</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- SECTION 3: Stage Details (Scrollable) -->
+        <div
+            class="flex-1 overflow-y-auto p-6 bg-slate-50/50 dark:bg-slate-900/10 relative transition-colors duration-300">
+
+            <!-- GLOBAL LOADING STATE -->
+            <div id="panel-loading"
+                class="hidden absolute inset-0 flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 bg-white/80 dark:bg-slate-950/80 z-20 backdrop-blur-sm">
+                <div class="relative w-24 h-24 mb-8">
+                    <div class="absolute inset-0 rounded-full border-4 border-slate-200 dark:border-slate-800"></div>
+                    <div class="absolute inset-0 rounded-full border-4 border-t-blue-500 animate-spin"></div>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <i class="fa-solid fa-brain text-3xl text-blue-500 animate-pulse"></i>
+                    </div>
+                </div>
+                <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-2">Analyzing Document</h3>
+                <p class="text-sm text-slate-500">Extracting entities & detecting fraud patterns...</p>
+
+                <!-- Progress Steps Simulation -->
+                <div class="mt-8 space-y-3 w-64">
+                    <div class="flex items-center gap-3 text-xs text-slate-400">
+                        <i class="fa-solid fa-circle-check text-emerald-500"></i>
+                        <span>Upload Complete</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs text-blue-500 dark:text-blue-400 animate-pulse">
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                        <span>Classifying Document...</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-600">
+                        <i class="fa-regular fa-circle"></i>
+                        <span>Extracting Entities</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-600">
+                        <i class="fa-regular fa-circle"></i>
+                        <span>Graph Analysis</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONTENT: Classification -->
+            <div id="content-classification" class="stage-content hidden space-y-6 animate-fade-in">
+                <div class="glass-card rounded-2xl p-10 text-center border border-blue-500/30 bg-blue-500/5">
+                    <div
+                        class="w-24 h-24 mx-auto rounded-full bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center mb-6 ring-4 ring-blue-500/10">
+                        <i class="fa-solid fa-file-medical text-4xl text-blue-500 dark:text-blue-400"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-slate-900 dark:text-white mb-2">Document Classified</h2>
+                    <p class="text-slate-500 dark:text-slate-400 mb-8">The system has automatically identified this
+                        document.</p>
+
+                    <div class="grid grid-cols-2 gap-6 max-w-lg mx-auto text-left">
+                        <div
+                            class="bg-white/50 dark:bg-slate-800/50 p-5 rounded-xl border border-black/5 dark:border-white/5">
+                            <p class="text-xs text-slate-500 uppercase tracking-wider">Document Type</p>
+                            <p id="class-type" class="text-xl font-bold text-slate-900 dark:text-white mt-2">HEALTH
+                                CLAIM</p>
+                        </div>
+                        <div
+                            class="bg-white/50 dark:bg-slate-800/50 p-5 rounded-xl border border-black/5 dark:border-white/5">
+                            <p class="text-xs text-slate-500 uppercase tracking-wider">Source</p>
+                            <p id="class-source" class="text-xl font-bold text-emerald-500 dark:text-emerald-400 mt-2">
+                                AUTO-ML</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONTENT: Extraction -->
+            <div id="content-extraction" class="stage-content hidden animate-fade-in h-full flex flex-col">
+                <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                    <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Extracted Entities</h3>
+                    <button id="copy-json-btn"
+                        class="text-xs text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300"><i
+                            class="fa-solid fa-copy"></i> Copy JSON</button>
+                </div>
+                <div
+                    class="flex-1 bg-slate-100 dark:bg-[#1e1e1e] rounded-xl p-4 overflow-auto border border-black/5 dark:border-white/10 shadow-inner">
+                    <pre id="extract-json"
+                        class="text-xs font-mono text-slate-700 dark:text-blue-300 leading-relaxed whitespace-pre-wrap break-words"></pre>
+                </div>
+            </div>
+
+            <!-- CONTENT: Mapping -->
+            <div id="content-mapping"
+                class="stage-content hidden animate-fade-in h-full flex items-center justify-center">
+                <div class="text-center opacity-50">
+                    <i class="fa-solid fa-diagram-project text-6xl text-slate-400 dark:text-slate-600 mb-4"></i>
+                    <h3 class="text-xl font-semibold text-slate-500 dark:text-slate-400">Schema Mapping</h3>
+                    <p class="text-sm text-slate-500 mt-2">Mapping extracted entities to Graph Ontology...</p>
+                    <div
+                        class="mt-6 px-4 py-2 bg-slate-200 dark:bg-slate-800 rounded-lg text-xs text-slate-500 dark:text-slate-400 font-mono">
+                        Entity: "Christopher Demarest" -> Node: (:Person {name: ...})
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONTENT: Graph -->
+            <div id="content-graph"
+                class="stage-content hidden animate-fade-in h-full flex items-center justify-center">
+                <div class="text-center opacity-50">
+                    <i class="fa-solid fa-circle-nodes text-6xl text-slate-400 dark:text-slate-600 mb-4"></i>
+                    <h3 class="text-xl font-semibold text-slate-500 dark:text-slate-400">Graph Traversal</h3>
+                    <p class="text-sm text-slate-500 mt-2">Running Cypher queries to detect fraud rings...</p>
+                    <div
+                        class="mt-6 px-4 py-2 bg-slate-200 dark:bg-slate-800 rounded-lg text-xs text-slate-500 dark:text-slate-400 font-mono">
+                        MATCH (p:Person)-[:FILED]->(c:Claim) WHERE c.amount > 5000 RETURN p
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONTENT: Result -->
+            <div id="content-result" class="stage-content hidden animate-fade-in space-y-6">
+                <!-- Verdict Card -->
+                <div id="result-verdict-card"
+                    class="glass-card rounded-2xl p-6 border-l-4 border-emerald-500 bg-emerald-500/5">
+                    <div class="flex items-center gap-4">
+                        <div id="result-icon-bg"
+                            class="w-12 h-12 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                            <i id="result-icon"
+                                class="fa-solid fa-check text-xl text-emerald-500 dark:text-emerald-400"></i>
+                        </div>
+                        <div>
+                            <h3 id="result-title" class="text-xl font-bold text-slate-900 dark:text-white">Legitimate
+                                Claim</h3>
+                            <p id="result-subtitle" class="text-sm text-slate-500 dark:text-slate-400">No significant
+                                fraud indicators found.</p>
+                        </div>
+                        <div class="ml-auto text-right">
+                            <p class="text-xs text-slate-500 uppercase">Risk Score</p>
+                            <p id="result-score" class="text-2xl font-bold text-emerald-500 dark:text-emerald-400">12%
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analysis Text -->
+                <div class="glass-card rounded-2xl p-6">
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-magnifying-glass-chart text-blue-500 dark:text-blue-400"></i> AI Analysis
+                    </h3>
+                    <p id="result-summary" class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                        The claim appears consistent with historical patterns. The provider "PREMIER INSURANCE GROUP" is
+                        verified.
+                        No overlapping claims found for the policyholder in the given timeframe.
+                    </p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<style>
+    .animate-fade-in {
+        animation: fadeIn 0.5s ease-out forwards;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
+<script>
+    // --- DOM ELEMENTS ---
+    const initialView = document.getElementById('initial-upload-view');
+    const leftPanel = document.getElementById('left-panel');
+    const rightPanel = document.getElementById('right-panel');
+    const toggleBtn = document.getElementById('toggle-btn');
+    const toggleIcon = document.getElementById('toggle-icon');
+    const pdfViewer = document.getElementById('pdf-viewer');
+
+    const fileInput = document.getElementById('fileInput');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const filenameSpan = document.getElementById('filename');
+    const uploadPlaceholder = document.getElementById('upload-placeholder');
+    const fileInfo = document.getElementById('file-info');
+    const removeFileBtn = document.getElementById('remove-file');
+    const panelLoading = document.getElementById('panel-loading');
+
+    // --- STATE ---
+    let selectedFile = null;
+    let isLeftPanelCollapsed = false;
+
+    // --- EVENT LISTENERS ---
+
+    // File Selection
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            selectedFile = e.target.files[0];
+            filenameSpan.innerText = selectedFile.name;
+            uploadPlaceholder.classList.add('opacity-0');
+            setTimeout(() => fileInfo.classList.remove('hidden'), 300);
+        }
+    });
+
+    removeFileBtn.addEventListener('click', (e) => {
+        selectedFile = null;
+        fileInput.value = '';
+        fileInfo.classList.add('hidden');
+        uploadPlaceholder.classList.remove('opacity-0');
+    });
+
+    // Analyze Click
+    analyzeBtn.addEventListener('click', async () => {
+        if (!selectedFile) { alert("Please select a file."); return; }
+
+        // 1. Transition Views
+        initialView.classList.add('opacity-0', 'pointer-events-none');
+        setTimeout(() => {
+            initialView.classList.add('hidden');
+            toggleBtn.classList.remove('hidden'); // Show toggle button only after analysis starts
+        }, 500);
+
+        // 2. Load PDF
+        const fileURL = URL.createObjectURL(selectedFile);
+        pdfViewer.src = fileURL + "#view=Fit";
+
+        // 3. Show Loading State
+        panelLoading.classList.remove('hidden');
+
+        // Reset Metrics to Skeletons
+        document.getElementById('metric-model').innerHTML = '<div class="h-3 w-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mt-1"></div>';
+        document.getElementById('metric-cost').innerHTML = '<div class="h-3 w-12 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mt-1"></div>';
+        document.getElementById('metric-tokens').innerHTML = '<div class="h-3 w-10 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mt-1"></div>';
+        document.getElementById('metric-time').innerHTML = '<div class="h-3 w-8 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mt-1"></div>';
+
+        // Hide all stage contents
+        document.querySelectorAll('.stage-content').forEach(el => el.classList.add('hidden'));
+
+        // 4. API Call
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('doc_type', 'Auto-Detect');
+        formData.append('classify_if_missing', true);
+
+        const startTime = Date.now();
+
+        try {
+            const res = await fetch('/api/upload', { method: 'POST', body: formData });
+            const apiData = await res.json();
+            const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+
+            // 5. Populate Data & Hide Loading
+            setTimeout(() => {
+                panelLoading.classList.add('hidden');
+                populateDashboard(apiData, duration);
+            }, 800); // Small delay for effect
+
+        } catch (err) {
+            console.error(err);
+            alert("Analysis failed. See console.");
+            panelLoading.classList.add('hidden');
+        }
+    });
+
+    // Panel Toggle Logic
+    toggleBtn.addEventListener('click', () => {
+        if (isLeftPanelCollapsed) {
+            // Expand Left Panel
+            leftPanel.style.width = '50%';
+            leftPanel.style.opacity = '1';
+
+            toggleBtn.style.left = '50%';
+            toggleBtn.style.marginLeft = '-1rem';
+
+            toggleIcon.classList.remove('fa-chevron-right');
+            toggleIcon.classList.add('fa-chevron-left');
+        } else {
+            // Collapse Left Panel
+            leftPanel.style.width = '0';
+            leftPanel.style.opacity = '0';
+
+            toggleBtn.style.left = '0';
+            toggleBtn.style.marginLeft = '0';
+
+            toggleIcon.classList.remove('fa-chevron-left');
+            toggleIcon.classList.add('fa-chevron-right');
+        }
+        isLeftPanelCollapsed = !isLeftPanelCollapsed;
+    });
+
+    // Stepper Logic
+    const stepBtns = document.querySelectorAll('.step-btn');
+    const contents = document.querySelectorAll('.stage-content');
+
+    stepBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const stage = btn.dataset.stage;
+            updateStepper(stage);
+        });
+    });
+
+    function updateStepper(activeStage) {
+        stepBtns.forEach(b => {
+            const iconDiv = b.querySelector('div');
+            const label = b.querySelector('span');
+
+            if (b.dataset.stage === activeStage) {
+                iconDiv.classList.remove('bg-slate-200', 'dark:bg-slate-700', 'text-slate-400');
+                iconDiv.classList.add('bg-blue-600', 'text-white', 'ring-2', 'ring-blue-500', 'ring-offset-2', 'ring-offset-white', 'dark:ring-offset-slate-900');
+                label.classList.remove('text-slate-500');
+                label.classList.add('text-blue-600', 'dark:text-blue-400');
+            } else {
+                iconDiv.classList.add('bg-slate-200', 'dark:bg-slate-700', 'text-slate-400');
+                iconDiv.classList.remove('bg-blue-600', 'text-white', 'ring-2', 'ring-blue-500', 'ring-offset-2', 'ring-offset-white', 'dark:ring-offset-slate-900');
+                label.classList.add('text-slate-500');
+                label.classList.remove('text-blue-600', 'dark:text-blue-400');
+            }
+        });
+
+        contents.forEach(c => c.classList.add('hidden'));
+        const activeContent = document.getElementById(`content-${activeStage}`);
+        if (activeContent) activeContent.classList.remove('hidden');
+    }
+
+    // --- DATA POPULATION ---
+    function populateDashboard(data, duration) {
+        // 1. Metrics
+        document.getElementById('metric-model').innerText = data.model || "Unknown";
+        document.getElementById('metric-cost').innerText = data.cost_estimate ? `$${data.cost_estimate.total_cost_usd.toFixed(4)}` : "$0.00";
+        document.getElementById('metric-tokens').innerText = data.usage ? data.usage.total_tokens : "0";
+        document.getElementById('metric-time').innerText = `${duration}s`;
+
+        // 2. Classification
+        document.getElementById('class-type').innerText = (data.doc_type || "Unknown").toUpperCase();
+        document.getElementById('class-source').innerText = (data.classification_source || "Auto").toUpperCase();
+
+        // 3. Extraction
+        const resultObj = data.result || {};
+        document.getElementById('extract-json').innerText = JSON.stringify(resultObj, null, 2);
+
+        // 4. Result
+        let score = 12;
+        let isFraud = false;
+
+        if (resultObj.fraud_score !== undefined) {
+            score = Math.round(resultObj.fraud_score * 100);
+            isFraud = score > 50;
+        }
+
+        const verdictCard = document.getElementById('result-verdict-card');
+        const iconBg = document.getElementById('result-icon-bg');
+        const icon = document.getElementById('result-icon');
+        const title = document.getElementById('result-title');
+        const subtitle = document.getElementById('result-subtitle');
+        const scoreEl = document.getElementById('result-score');
+        const summaryEl = document.getElementById('result-summary');
+
+        if (isFraud) {
+            verdictCard.className = "glass-card rounded-2xl p-6 border-l-4 border-red-500 bg-red-500/5";
+            iconBg.className = "w-12 h-12 rounded-full bg-red-500/10 dark:bg-red-500/20 flex items-center justify-center flex-shrink-0";
+            icon.className = "fa-solid fa-triangle-exclamation text-xl text-red-500 dark:text-red-400";
+            title.innerText = "High Fraud Risk";
+            subtitle.innerText = "Suspicious patterns detected.";
+            scoreEl.innerText = `${score}%`;
+            scoreEl.className = "text-2xl font-bold text-red-500 dark:text-red-400";
+        } else {
+            verdictCard.className = "glass-card rounded-2xl p-6 border-l-4 border-emerald-500 bg-emerald-500/5";
+            iconBg.className = "w-12 h-12 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center flex-shrink-0";
+            icon.className = "fa-solid fa-check text-xl text-emerald-500 dark:text-emerald-400";
+            title.innerText = "Legitimate Claim";
+            subtitle.innerText = "No significant fraud indicators found.";
+            scoreEl.innerText = `${score}%`;
+            scoreEl.className = "text-2xl font-bold text-emerald-500 dark:text-emerald-400";
+        }
+
+        summaryEl.innerText = resultObj.summary || resultObj.notes || "No summary available.";
+
+        // Auto-switch to Classification tab
+        updateStepper('classification');
+    }
+
+    // Copy JSON Logic
+    document.getElementById('copy-json-btn').addEventListener('click', () => {
+        const jsonText = document.getElementById('extract-json').innerText;
+        navigator.clipboard.writeText(jsonText).then(() => {
+            const btn = document.getElementById('copy-json-btn');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+            }, 2000);
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+        });
+    });
+
+</script>
+{% endblock %}
