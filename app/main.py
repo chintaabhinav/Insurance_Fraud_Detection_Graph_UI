@@ -26,6 +26,7 @@ def get_dashboard_data():
 
 # --- Routes ---
 
+
 @app.route('/')
 def dashboard():
     data = get_dashboard_data()
@@ -34,6 +35,7 @@ def dashboard():
 @app.route('/upload')
 def upload():
     return render_template('upload.html', page='upload')
+
 
 @app.route('/chat')
 def chat():
@@ -97,6 +99,41 @@ def api_upload():
                 ]
             }
         }), 503
+    
+@app.route('/api/fraud/ingest', methods=['POST'])
+def api_fraud_ingest():
+    """Forward extracted data to graph ingestion endpoint"""
+    try:
+        data = request.get_json()
+        url = f"{BACKEND_URL}/v1/fraud/ingest_to_graph"
+        
+        resp = requests.post(url, json=data, timeout=120)
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except requests.exceptions.RequestException as e:
+        print(f"Graph ingestion failed: {e}")
+        return jsonify({
+            "error": "Graph ingestion failed",
+            "details": str(e)
+        }), 503
+
+@app.route('/api/fraud/analyze', methods=['POST'])
+def api_fraud_analyze():
+    """Forward graph data to LLM analysis endpoint"""
+    try:
+        data = request.get_json()
+        url = f"{BACKEND_URL}/v1/fraud/analyze"
+        
+        resp = requests.post(url, json=data, timeout=120)
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except requests.exceptions.RequestException as e:
+        print(f"Fraud analysis failed: {e}")
+        return jsonify({
+            "error": "Fraud analysis failed",
+            "details": str(e)
+        }), 503
+
 
 @app.route('/api/chat', methods=['POST'])
 def api_chat():

@@ -376,6 +376,7 @@
     }
 </style>
 
+
 <script>
     // --- DOM ELEMENTS ---
     const initialView = document.getElementById('initial-upload-view');
@@ -396,6 +397,7 @@
     // --- STATE ---
     let selectedFile = null;
     let isLeftPanelCollapsed = false;
+    let analysisData = {}; // Store all analysis data
 
     // --- EVENT LISTENERS ---
 
@@ -416,15 +418,18 @@
         uploadPlaceholder.classList.remove('opacity-0');
     });
 
-    // Analyze Click
+    // Analyze Click - NEW 3-STEP PIPELINE
     analyzeBtn.addEventListener('click', async () => {
-        if (!selectedFile) { alert("Please select a file."); return; }
+        if (!selectedFile) { 
+            alert("Please select a file."); 
+            return; 
+        }
 
         // 1. Transition Views
         initialView.classList.add('opacity-0', 'pointer-events-none');
         setTimeout(() => {
             initialView.classList.add('hidden');
-            toggleBtn.classList.remove('hidden'); // Show toggle button only after analysis starts
+            toggleBtn.classList.remove('hidden');
         }, 500);
 
         // 2. Load PDF
@@ -433,6 +438,7 @@
 
         // 3. Show Loading State
         panelLoading.classList.remove('hidden');
+        updateLoadingStep(0); // Upload complete
 
         // Reset Metrics to Skeletons
         document.getElementById('metric-model').innerHTML = '<div class="h-3 w-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mt-1"></div>';
@@ -443,52 +449,137 @@
         // Hide all stage contents
         document.querySelectorAll('.stage-content').forEach(el => el.classList.add('hidden'));
 
-        // 4. API Call
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-        formData.append('doc_type', 'Auto-Detect');
-        formData.append('classify_if_missing', true);
-
         const startTime = Date.now();
 
         try {
-            const res = await fetch('/api/upload', { method: 'POST', body: formData });
-            const apiData = await res.json();
+            // ============================================
+            // STEP 1: Extract and Classify Document
+            // ============================================
+            console.log("Step 1: Extracting document...");
+            updateLoadingStep(1); // Classifying
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('doc_type', 'Auto-Detect');
+            formData.append('classify_if_missing', true);
+
+            const extractRes = await fetch('/api/upload', { 
+                method: 'POST', 
+                body: formData 
+            });
+            const extractData = await extractRes.json();
+
+            if (extractData.error) {
+                throw new Error(`Extract failed: ${extractData.error}`);
+            }
+
+            console.log("✅ Step 1 Complete:", extractData);
+            analysisData.extract = extractData;
+
+            await sleep(500);
+
+            // ============================================
+            // STEP 2: Ingest to Graph
+            // ============================================
+            console.log("Step 2: Ingesting to Neo4j graph...");
+            updateLoadingStep(2); // Graph analysis
+
+            const ingestRes = await fetch('/api/fraud/ingest', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(extractData)
+            });
+            const ingestData = await ingestRes.json();
+
+            if (ingestData.error) {
+                throw new Error(`Graph ingest failed: ${ingestData.error}`);
+            }
+
+            console.log("✅ Step 2 Complete:", ingestData);
+            analysisData.ingest = ingestData;
+
+            await sleep(500);
+
+            // ============================================
+            // STEP 3: LLM Analysis
+            // ============================================
+            console.log("Step 3: Running LLM analysis...");
+            updateLoadingStep(3); // All complete
+
+            const analyzeRes = await fetch('/api/fraud/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(ingestData)
+            });
+            const analyzeData = await analyzeRes.json();
+
+            if (analyzeData.error) {
+                throw new Error(`LLM analysis failed: ${analyzeData.error}`);
+            }
+
+            console.log("✅ Step 3 Complete:", analyzeData);
+            analysisData.analyze = analyzeData;
+
+            // Calculate duration
             const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
-            // 5. Populate Data & Hide Loading
+            // 5. Populate Dashboard with ALL data
             setTimeout(() => {
                 panelLoading.classList.add('hidden');
-                populateDashboard(apiData, duration);
-            }, 800); // Small delay for effect
+                populateDashboard(extractData, ingestData, analyzeData, duration);
+            }, 800);
+
+            console.log("🎉 All 3 steps completed successfully!");
 
         } catch (err) {
-            console.error(err);
-            alert("Analysis failed. See console.");
+            console.error('❌ Analysis pipeline failed:', err);
+            alert(`Analysis failed: ${err.message}\n\nCheck the console for details.`);
             panelLoading.classList.add('hidden');
         }
     });
 
+    // Helper: Update loading step indicators
+    function updateLoadingStep(step) {
+        const steps = panelLoading.querySelectorAll('.space-y-3 > div');
+        steps.forEach((stepEl, index) => {
+            const icon = stepEl.querySelector('i');
+            const text = stepEl.querySelector('span');
+
+            if (index < step) {
+                // Completed
+                icon.className = 'fa-solid fa-circle-check text-emerald-500';
+                stepEl.className = 'flex items-center gap-3 text-xs text-slate-400';
+            } else if (index === step) {
+                // Current
+                icon.className = 'fa-solid fa-spinner fa-spin';
+                stepEl.className = 'flex items-center gap-3 text-xs text-blue-500 dark:text-blue-400 animate-pulse';
+            } else {
+                // Pending
+                icon.className = 'fa-regular fa-circle';
+                stepEl.className = 'flex items-center gap-3 text-xs text-slate-500 dark:text-slate-600';
+            }
+        });
+    }
+
+    // Helper: Sleep function
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
     // Panel Toggle Logic
     toggleBtn.addEventListener('click', () => {
         if (isLeftPanelCollapsed) {
-            // Expand Left Panel
             leftPanel.style.width = '50%';
             leftPanel.style.opacity = '1';
-
             toggleBtn.style.left = '50%';
             toggleBtn.style.marginLeft = '-1rem';
-
             toggleIcon.classList.remove('fa-chevron-right');
             toggleIcon.classList.add('fa-chevron-left');
         } else {
-            // Collapse Left Panel
             leftPanel.style.width = '0';
             leftPanel.style.opacity = '0';
-
             toggleBtn.style.left = '0';
             toggleBtn.style.marginLeft = '0';
-
             toggleIcon.classList.remove('fa-chevron-left');
             toggleIcon.classList.add('fa-chevron-right');
         }
@@ -529,30 +620,169 @@
         if (activeContent) activeContent.classList.remove('hidden');
     }
 
-    // --- DATA POPULATION ---
-    function populateDashboard(data, duration) {
-        // 1. Metrics
-        document.getElementById('metric-model').innerText = data.model || "Unknown";
-        document.getElementById('metric-cost').innerText = data.cost_estimate ? `$${data.cost_estimate.total_cost_usd.toFixed(4)}` : "$0.00";
-        document.getElementById('metric-tokens').innerText = data.usage ? data.usage.total_tokens : "0";
+    // --- DATA POPULATION (UPDATED FOR 3-STEP PIPELINE) ---
+    function populateDashboard(extractData, ingestData, analyzeData, duration) {
+        // 1. Metrics (from extract)
+        document.getElementById('metric-model').innerText = extractData.model || "Unknown";
+        document.getElementById('metric-cost').innerText = extractData.cost_estimate ? `$${extractData.cost_estimate.total_cost_usd.toFixed(4)}` : "$0.00";
+        document.getElementById('metric-tokens').innerText = extractData.usage ? extractData.usage.total_tokens : "0";
         document.getElementById('metric-time').innerText = `${duration}s`;
 
         // 2. Classification
-        document.getElementById('class-type').innerText = (data.doc_type || "Unknown").toUpperCase();
-        document.getElementById('class-source').innerText = (data.classification_source || "Auto").toUpperCase();
+        document.getElementById('class-type').innerText = (extractData.doc_type || "Unknown").toUpperCase();
+        document.getElementById('class-source').innerText = (extractData.classification_source || "Auto").toUpperCase();
 
-        // 3. Extraction
-        const resultObj = data.result || {};
+        // 3. Extraction - Show extracted JSON
+        const resultObj = extractData.result || {};
         document.getElementById('extract-json').innerText = JSON.stringify(resultObj, null, 2);
 
-        // 4. Result
-        let score = 12;
-        let isFraud = false;
+        // 4. Mapping - Show graph ingestion results
+        populateMappingContent(ingestData);
 
-        if (resultObj.fraud_score !== undefined) {
-            score = Math.round(resultObj.fraud_score * 100);
-            isFraud = score > 50;
-        }
+        // 5. Graph - Show LLM analysis
+        populateGraphContent(analyzeData, ingestData);
+
+        // 6. Result - Final verdict
+        populateResultContent(analyzeData);
+
+        // Auto-switch to Classification tab
+        updateStepper('classification');
+    }
+
+    // Populate Mapping Tab with Graph Ingestion Results
+    function populateMappingContent(ingestData) {
+        const mappingContent = document.getElementById('content-mapping');
+        
+        const html = `
+            <div class="w-full space-y-6">
+                <div class="text-center mb-6">
+                    <i class="fa-solid fa-diagram-project text-6xl text-blue-500 dark:text-blue-400 mb-4"></i>
+                    <h3 class="text-2xl font-bold text-slate-900 dark:text-white">Graph Ingestion Complete</h3>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">Data has been mapped to Neo4j knowledge graph</p>
+                </div>
+
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="glass-card rounded-xl p-6 text-center">
+                        <p class="text-3xl font-bold text-blue-600 dark:text-blue-400">${ingestData.nodes_created || 0}</p>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mt-2">Nodes Created</p>
+                    </div>
+                    <div class="glass-card rounded-xl p-6 text-center">
+                        <p class="text-3xl font-bold text-purple-600 dark:text-purple-400">${ingestData.relationships_created || 0}</p>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mt-2">Relationships</p>
+                    </div>
+                    <div class="glass-card rounded-xl p-6 text-center">
+                        <p class="text-3xl font-bold ${ingestData.is_fraudulent ? 'text-red-600' : 'text-green-600'}">${ingestData.fraud_score ? (ingestData.fraud_score * 100).toFixed(0) + '%' : 'N/A'}</p>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 mt-2">Fraud Score</p>
+                    </div>
+                </div>
+
+                ${ingestData.detected_patterns && ingestData.detected_patterns.length > 0 ? `
+                    <div class="glass-card rounded-xl p-6 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800">
+                        <h4 class="text-lg font-bold text-red-900 dark:text-red-300 mb-4">🚨 Detected Fraud Patterns</h4>
+                        <div class="space-y-4">
+                            ${ingestData.detected_patterns.map(pattern => `
+                                <div class="bg-white/50 dark:bg-slate-800/50 p-4 rounded-lg">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="font-bold text-red-800 dark:text-red-300">${pattern.pattern_type}</span>
+                                        <span class="px-2 py-1 rounded-full text-xs font-semibold ${
+                                            pattern.confidence === 'HIGH' ? 'bg-red-200 text-red-800' :
+                                            pattern.confidence === 'MEDIUM' ? 'bg-yellow-200 text-yellow-800' :
+                                            'bg-blue-200 text-blue-800'
+                                        }">${pattern.confidence}</span>
+                                    </div>
+                                    <ul class="text-sm text-slate-700 dark:text-slate-300 space-y-1">
+                                        ${pattern.evidence.map(e => `<li>• ${e}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : `
+                    <div class="glass-card rounded-xl p-6 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 text-center">
+                        <i class="fa-solid fa-check-circle text-4xl text-green-600 dark:text-green-400 mb-2"></i>
+                        <p class="text-green-800 dark:text-green-300 font-semibold">No fraud patterns detected</p>
+                    </div>
+                `}
+            </div>
+        `;
+        
+        mappingContent.innerHTML = html;
+        mappingContent.classList.remove('hidden');
+        mappingContent.classList.add('flex', 'items-start', 'justify-center', 'p-6');
+        mappingContent.classList.remove('items-center');
+    }
+
+    // Populate Graph Tab with LLM Analysis
+    function populateGraphContent(analyzeData, ingestData) {
+        const graphContent = document.getElementById('content-graph');
+        
+        const html = `
+            <div class="w-full space-y-6 p-6 overflow-y-auto max-h-full">
+                <div class="text-center mb-6">
+                    <div class="w-24 h-24 mx-auto rounded-full ${analyzeData.risk_score >= 70 ? 'bg-red-500/10' : analyzeData.risk_score >= 40 ? 'bg-yellow-500/10' : 'bg-green-500/10'} flex items-center justify-center mb-4">
+                        <span class="text-4xl font-bold ${analyzeData.risk_score >= 70 ? 'text-red-600' : analyzeData.risk_score >= 40 ? 'text-yellow-600' : 'text-green-600'}">${analyzeData.risk_score.toFixed(0)}</span>
+                    </div>
+                    <h3 class="text-2xl font-bold text-slate-900 dark:text-white">Risk Score: ${analyzeData.risk_score.toFixed(1)}/100</h3>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">Confidence: ${analyzeData.confidence_level}</p>
+                </div>
+
+                <div class="glass-card rounded-xl p-6">
+                    <h4 class="text-lg font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-file-lines text-blue-500"></i>
+                        Summary
+                    </h4>
+                    <p class="text-sm text-slate-700 dark:text-slate-300">${analyzeData.summary}</p>
+                </div>
+
+                <div class="glass-card rounded-xl p-6">
+                    <h4 class="text-lg font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-magnifying-glass-chart text-purple-500"></i>
+                        Detailed Analysis
+                    </h4>
+                    <p class="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">${analyzeData.detailed_reasoning}</p>
+                </div>
+
+                ${analyzeData.red_flags && analyzeData.red_flags.length > 0 ? `
+                    <div class="glass-card rounded-xl p-6 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800">
+                        <h4 class="text-lg font-bold text-red-900 dark:text-red-300 mb-3">🚩 Red Flags</h4>
+                        <ul class="space-y-2">
+                            ${analyzeData.red_flags.map(flag => `
+                                <li class="text-sm text-red-800 dark:text-red-300">• ${flag}</li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+
+                ${analyzeData.mitigating_factors && analyzeData.mitigating_factors.length > 0 ? `
+                    <div class="glass-card rounded-xl p-6 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800">
+                        <h4 class="text-lg font-bold text-green-900 dark:text-green-300 mb-3">✅ Mitigating Factors</h4>
+                        <ul class="space-y-2">
+                            ${analyzeData.mitigating_factors.map(factor => `
+                                <li class="text-sm text-green-800 dark:text-green-300">• ${factor}</li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+
+                <div class="glass-card rounded-xl p-6 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800">
+                    <h4 class="text-lg font-bold text-blue-900 dark:text-blue-300 mb-3">💡 Recommendations</h4>
+                    <ul class="space-y-2">
+                        ${analyzeData.recommendations.map(rec => `
+                            <li class="text-sm text-blue-800 dark:text-blue-300">• ${rec}</li>
+                        `).join('')}
+                    </ul>
+                </div>
+            </div>
+        `;
+        
+        graphContent.innerHTML = html;
+        graphContent.classList.remove('hidden', 'flex', 'items-center', 'justify-center');
+    }
+
+    // Populate Result Tab with Final Verdict
+    function populateResultContent(analyzeData) {
+        const isFraud = analyzeData.is_fraudulent;
+        const score = analyzeData.risk_score;
 
         const verdictCard = document.getElementById('result-verdict-card');
         const iconBg = document.getElementById('result-icon-bg');
@@ -567,8 +797,8 @@
             iconBg.className = "w-12 h-12 rounded-full bg-red-500/10 dark:bg-red-500/20 flex items-center justify-center flex-shrink-0";
             icon.className = "fa-solid fa-triangle-exclamation text-xl text-red-500 dark:text-red-400";
             title.innerText = "High Fraud Risk";
-            subtitle.innerText = "Suspicious patterns detected.";
-            scoreEl.innerText = `${score}%`;
+            subtitle.innerText = "Suspicious patterns detected in graph analysis.";
+            scoreEl.innerText = `${score.toFixed(1)}%`;
             scoreEl.className = "text-2xl font-bold text-red-500 dark:text-red-400";
         } else {
             verdictCard.className = "glass-card rounded-2xl p-6 border-l-4 border-emerald-500 bg-emerald-500/5";
@@ -576,14 +806,11 @@
             icon.className = "fa-solid fa-check text-xl text-emerald-500 dark:text-emerald-400";
             title.innerText = "Legitimate Claim";
             subtitle.innerText = "No significant fraud indicators found.";
-            scoreEl.innerText = `${score}%`;
+            scoreEl.innerText = `${score.toFixed(1)}%`;
             scoreEl.className = "text-2xl font-bold text-emerald-500 dark:text-emerald-400";
         }
 
-        summaryEl.innerText = resultObj.summary || resultObj.notes || "No summary available.";
-
-        // Auto-switch to Classification tab
-        updateStepper('classification');
+        summaryEl.innerText = analyzeData.summary || "Analysis complete.";
     }
 
     // Copy JSON Logic
