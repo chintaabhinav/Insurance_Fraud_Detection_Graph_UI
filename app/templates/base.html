@@ -43,11 +43,11 @@
     <style>
         /* Glassmorphism Utilities */
         .glass-panel {
-            background: rgba(255, 255, 255, 0.7);
+            background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(0, 0, 0, 0.05);
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
         }
 
         .dark .glass-panel {
@@ -57,9 +57,9 @@
         }
 
         .glass-card {
-            background: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.7);
             backdrop-filter: blur(8px);
-            border: 1px solid rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(0, 0, 0, 0.08);
             transition: transform 0.2s, border-color 0.2s;
         }
 
@@ -75,9 +75,9 @@
 
         /* Navigation Active State */
         .nav-link.active {
-            background: rgba(56, 189, 248, 0.1);
+            background: rgba(56, 189, 248, 0.15);
             color: #0ea5e9;
-            border: 1px solid rgba(56, 189, 248, 0.2);
+            border: 1px solid rgba(56, 189, 248, 0.3);
         }
 
         .dark .nav-link.active {
@@ -117,7 +117,7 @@
 </head>
 
 <body
-    class="min-h-screen flex flex-col bg-slate-50 text-slate-900 dark:bg-[#020617] dark:text-[#f8fafc] transition-colors duration-300 bg-[radial-gradient(at_0%_0%,_rgba(56,189,248,0.1)_0px,_transparent_50%),_radial-gradient(at_100%_0%,_rgba(168,85,247,0.1)_0px,_transparent_50%)] dark:bg-[radial-gradient(at_0%_0%,_rgba(56,189,248,0.15)_0px,_transparent_50%),_radial-gradient(at_100%_0%,_rgba(168,85,247,0.15)_0px,_transparent_50%)] bg-fixed">
+    class="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-[#020617] dark:text-[#f8fafc] transition-colors duration-300 bg-[radial-gradient(at_0%_0%,_rgba(56,189,248,0.08)_0px,_transparent_50%),_radial-gradient(at_100%_0%,_rgba(168,85,247,0.08)_0px,_transparent_50%)] dark:bg-[radial-gradient(at_0%_0%,_rgba(56,189,248,0.15)_0px,_transparent_50%),_radial-gradient(at_100%_0%,_rgba(168,85,247,0.15)_0px,_transparent_50%)] bg-fixed">
 
     <!-- Navbar -->
     <nav class="fixed top-4 left-1/2 transform -translate-x-1/2 w-[95%] max-w-6xl z-50">
@@ -128,37 +128,37 @@
                     class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
                     <i class="fa-solid fa-shield-halved text-white text-sm"></i>
                 </div>
-                <span class="font-bold text-lg tracking-tight">FraudGuard<span
+                <span class="font-bold text-lg tracking-tight text-gray-900 dark:text-white">FraudGuard<span
                         class="text-blue-500 dark:text-primary">AI</span></span>
             </div>
 
             <!-- Desktop Navigation Links -->
             <div
-                class="hidden md:flex items-center gap-2 bg-slate-200/50 dark:bg-slate-800/50 rounded-full p-1 border border-black/5 dark:border-white/5">
+                class="hidden md:flex items-center gap-2 bg-gray-200/70 dark:bg-slate-800/50 rounded-full p-1 border border-gray-300/50 dark:border-white/5">
                 <a href="/"
-                    class="nav-link px-4 py-1.5 rounded-full text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all {{ 'active' if page == 'dashboard' else '' }}">Dashboard</a>
+                    class="nav-link px-4 py-1.5 rounded-full text-sm font-medium text-gray-700 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-all {{ 'active' if page == 'dashboard' else '' }}">Dashboard</a>
                 <a href="/upload"
-                    class="nav-link px-4 py-1.5 rounded-full text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all {{ 'active' if page == 'upload' else '' }}">Upload
+                    class="nav-link px-4 py-1.5 rounded-full text-sm font-medium text-gray-700 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-all {{ 'active' if page == 'upload' else '' }}">Upload
                     & Detect</a>
                 <a href="/chat"
-                    class="nav-link px-4 py-1.5 rounded-full text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all {{ 'active' if page == 'chat' else '' }}">Chatbot</a>
+                    class="nav-link px-4 py-1.5 rounded-full text-sm font-medium text-gray-700 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-all {{ 'active' if page == 'chat' else '' }}">Chatbot</a>
                 <a href="/monitoring"
-                    class="nav-link px-4 py-1.5 rounded-full text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all {{ 'active' if page == 'monitoring' else '' }}">Monitoring</a>
+                    class="nav-link px-4 py-1.5 rounded-full text-sm font-medium text-gray-700 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-all {{ 'active' if page == 'monitoring' else '' }}">Monitoring</a>
                 <a href="/evaluation"
-                    class="nav-link px-4 py-1.5 rounded-full text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all {{ 'active' if page == 'evaluation' else '' }}">Evaluation</a>
+                    class="nav-link px-4 py-1.5 rounded-full text-sm font-medium text-gray-700 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-all {{ 'active' if page == 'evaluation' else '' }}">Evaluation</a>
             </div>
 
             <!-- Right Actions -->
             <div class="flex items-center gap-3">
                 <button id="theme-toggle"
-                    class="w-8 h-8 rounded-full bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 flex items-center justify-center transition-colors border border-black/5 dark:border-white/5">
+                    class="w-8 h-8 rounded-full bg-gray-200 dark:bg-white/5 hover:bg-gray-300 dark:hover:bg-white/10 flex items-center justify-center transition-colors border border-gray-300 dark:border-white/5">
                     <i class="fa-solid fa-sun text-amber-500 dark:text-slate-400"></i>
                 </button>
 
                 <!-- Mobile Menu Button -->
                 <button id="mobile-menu-btn"
-                    class="md:hidden w-8 h-8 rounded-full bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 flex items-center justify-center transition-colors border border-black/5 dark:border-white/5">
-                    <i class="fa-solid fa-bars text-slate-600 dark:text-slate-400"></i>
+                    class="md:hidden w-8 h-8 rounded-full bg-gray-200 dark:bg-white/5 hover:bg-gray-300 dark:hover:bg-white/10 flex items-center justify-center transition-colors border border-gray-300 dark:border-white/5">
+                    <i class="fa-solid fa-bars text-gray-700 dark:text-slate-400"></i>
                 </button>
             </div>
         </div>
@@ -167,23 +167,23 @@
         <div id="mobile-menu"
             class="hidden absolute top-full left-0 w-full mt-2 glass-panel rounded-2xl p-4 flex flex-col gap-2 md:hidden transform origin-top transition-all duration-200">
             <a href="/"
-                class="px-4 py-3 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all {{ 'active' if page == 'dashboard' else '' }}">
+                class="px-4 py-3 rounded-xl text-sm font-medium text-gray-700 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-all {{ 'active' if page == 'dashboard' else '' }}">
                 <i class="fa-solid fa-chart-line w-6"></i> Dashboard
             </a>
             <a href="/upload"
-                class="px-4 py-3 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all {{ 'active' if page == 'upload' else '' }}">
+                class="px-4 py-3 rounded-xl text-sm font-medium text-gray-700 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-all {{ 'active' if page == 'upload' else '' }}">
                 <i class="fa-solid fa-cloud-arrow-up w-6"></i> Upload & Detect
             </a>
             <a href="/chat"
-                class="px-4 py-3 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all {{ 'active' if page == 'chat' else '' }}">
+                class="px-4 py-3 rounded-xl text-sm font-medium text-gray-700 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-all {{ 'active' if page == 'chat' else '' }}">
                 <i class="fa-solid fa-robot w-6"></i> Chatbot
             </a>
             <a href="/monitoring"
-                class="px-4 py-3 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all {{ 'active' if page == 'monitoring' else '' }}">
+                class="px-4 py-3 rounded-xl text-sm font-medium text-gray-700 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-all {{ 'active' if page == 'monitoring' else '' }}">
                 <i class="fa-solid fa-chart-pulse w-6"></i> Monitoring
             </a>
             <a href="/evaluation"
-                class="px-4 py-3 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all {{ 'active' if page == 'evaluation' else '' }}">
+                class="px-4 py-3 rounded-xl text-sm font-medium text-gray-700 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-all {{ 'active' if page == 'evaluation' else '' }}">
                 <i class="fa-solid fa-check-double w-6"></i> Evaluation
             </a>
         </div>
@@ -205,7 +205,7 @@
             if (html.classList.contains('dark')) {
                 icon.className = 'fa-solid fa-sun text-slate-400';
             } else {
-                icon.className = 'fa-solid fa-moon text-slate-600';
+                icon.className = 'fa-solid fa-moon text-gray-700';
             }
         }
         updateIcon();
