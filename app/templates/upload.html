@@ -622,19 +622,27 @@
 
     // --- DATA POPULATION (UPDATED FOR 3-STEP PIPELINE) ---
     function populateDashboard(extractData, ingestData, analyzeData, duration) {
+        const extraction = extractData.extraction || {};
+        const extractedPayload = extraction.data || extractData.result || {};
+        const metadata = extractData.metadata || {};
+        const timings = metadata.timings || {};
+
         // 1. Metrics (from extract)
-        document.getElementById('metric-model').innerText = extractData.model || "Unknown";
-        document.getElementById('metric-cost').innerText = extractData.cost_estimate ? `$${extractData.cost_estimate.total_cost_usd.toFixed(4)}` : "$0.00";
-        document.getElementById('metric-tokens').innerText = extractData.usage ? extractData.usage.total_tokens : "0";
-        document.getElementById('metric-time').innerText = `${duration}s`;
+        document.getElementById('metric-model').innerText = extraction.model || extractData.model || "Unknown";
+        if (extraction.cost_estimate && typeof extraction.cost_estimate.total_cost_usd === 'number') {
+            document.getElementById('metric-cost').innerText = `$${extraction.cost_estimate.total_cost_usd.toFixed(4)}`;
+        } else {
+            document.getElementById('metric-cost').innerText = "$0.00";
+        }
+        document.getElementById('metric-tokens').innerText = extraction.usage ? extraction.usage.total_tokens : "0";
+        document.getElementById('metric-time').innerText = timings.total_ms ? `${(timings.total_ms / 1000).toFixed(2)}s` : `${duration}s`;
 
         // 2. Classification
-        document.getElementById('class-type').innerText = (extractData.doc_type || "Unknown").toUpperCase();
-        document.getElementById('class-source').innerText = (extractData.classification_source || "Auto").toUpperCase();
+        document.getElementById('class-type').innerText = (extraction.doc_type || extractedPayload.doc_type || "Unknown").toUpperCase();
+        document.getElementById('class-source').innerText = (extraction.classification_source || "Auto").toUpperCase();
 
         // 3. Extraction - Show extracted JSON
-        const resultObj = extractData.result || {};
-        document.getElementById('extract-json').innerText = JSON.stringify(resultObj, null, 2);
+        document.getElementById('extract-json').innerText = JSON.stringify(extractedPayload, null, 2);
 
         // 4. Mapping - Show graph ingestion results
         populateMappingContent(ingestData);
@@ -652,6 +660,11 @@
     // Populate Mapping Tab with Graph Ingestion Results
     function populateMappingContent(ingestData) {
         const mappingContent = document.getElementById('content-mapping');
+        const nodesCreated = Number.isFinite(ingestData.nodes_created) ? ingestData.nodes_created : 0;
+        const relationshipsCreated = Number.isFinite(ingestData.relationships_created) ? ingestData.relationships_created : 0;
+        const fraudScoreText = Number.isFinite(ingestData.fraud_score)
+            ? `${(ingestData.fraud_score * 100).toFixed(0)}%`
+            : 'N/A';
         
         const html = `
             <div class="w-full space-y-6">
@@ -663,15 +676,15 @@
 
                 <div class="grid grid-cols-3 gap-4">
                     <div class="glass-card rounded-xl p-6 text-center">
-                        <p class="text-3xl font-bold text-blue-600 dark:text-blue-400">${ingestData.nodes_created || 0}</p>
+                        <p class="text-3xl font-bold text-blue-600 dark:text-blue-400">${nodesCreated}</p>
                         <p class="text-sm text-slate-600 dark:text-slate-400 mt-2">Nodes Created</p>
                     </div>
                     <div class="glass-card rounded-xl p-6 text-center">
-                        <p class="text-3xl font-bold text-purple-600 dark:text-purple-400">${ingestData.relationships_created || 0}</p>
+                        <p class="text-3xl font-bold text-purple-600 dark:text-purple-400">${relationshipsCreated}</p>
                         <p class="text-sm text-slate-600 dark:text-slate-400 mt-2">Relationships</p>
                     </div>
                     <div class="glass-card rounded-xl p-6 text-center">
-                        <p class="text-3xl font-bold ${ingestData.is_fraudulent ? 'text-red-600' : 'text-green-600'}">${ingestData.fraud_score ? (ingestData.fraud_score * 100).toFixed(0) + '%' : 'N/A'}</p>
+                        <p class="text-3xl font-bold ${ingestData.is_fraudulent ? 'text-red-600' : 'text-green-600'}">${fraudScoreText}</p>
                         <p class="text-sm text-slate-600 dark:text-slate-400 mt-2">Fraud Score</p>
                     </div>
                 </div>
