@@ -715,19 +715,276 @@
     function populateGraphContent(analyzeData, ingestData) {
     const graphContent = document.getElementById('content-graph');
     
+    // Check if we have graph data
+    const graphData = ingestData.fraud_graph_output;
+    
+    if (!graphData || !graphData.nodes || graphData.nodes.length === 0) {
+        // No graph data - show placeholder
+        graphContent.innerHTML = `
+            <div class="text-center opacity-50">
+                <i class="fa-solid fa-circle-nodes text-6xl text-slate-400 dark:text-slate-600 mb-4"></i>
+                <h3 class="text-xl font-semibold text-slate-500 dark:text-slate-400">No Graph Data Available</h3>
+                <p class="text-sm text-slate-500 mt-2">Graph visualization requires entity relationships in Neo4j</p>
+            </div>
+        `;
+        graphContent.classList.remove('hidden');
+        return;
+    }
+    
+    // We have graph data - create visualization
     const html = `
-        <div class="text-center opacity-50">
-            <i class="fa-solid fa-circle-nodes text-6xl text-slate-400 dark:text-slate-600 mb-4"></i>
-            <h3 class="text-xl font-semibold text-slate-500 dark:text-slate-400">Graph Visualization</h3>
-            <p class="text-sm text-slate-500 mt-2">Interactive graph visualization coming soon...</p>
-            <div class="mt-6 px-4 py-2 bg-slate-200 dark:bg-slate-800 rounded-lg text-xs text-slate-500 dark:text-slate-400 font-mono">
-                Nodes: ${ingestData.nodes_created || 0} | Relationships: ${ingestData.relationships_created || 0}
+        <div class="w-full h-full flex flex-col p-6">
+            <!-- Graph Header -->
+            <div class="mb-4 flex items-center justify-between">
+                <div>
+                    <h3 class="text-xl font-bold text-slate-900 dark:text-white">Knowledge Graph Visualization</h3>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">Interactive view of claim relationships</p>
+                </div>
+                <div class="flex gap-2">
+                    <button id="resetGraphBtn" class="px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-700 text-sm hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+                        <i class="fa-solid fa-arrows-rotate mr-1"></i>
+                        Reset View
+                    </button>
+                    <button id="fitGraphBtn" class="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-sm hover:bg-blue-600 transition-colors">
+                        <i class="fa-solid fa-expand mr-1"></i>
+                        Fit to Screen
+                    </button>
+                </div>
+            </div>
+
+            <!-- Graph Stats -->
+            <div class="grid grid-cols-3 gap-3 mb-4">
+                <div class="glass-card rounded-lg p-3 text-center">
+                    <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">${graphData.nodes.length}</p>
+                    <p class="text-xs text-slate-600 dark:text-slate-400">Nodes</p>
+                </div>
+                <div class="glass-card rounded-lg p-3 text-center">
+                    <p class="text-2xl font-bold text-purple-600 dark:text-purple-400">${graphData.edges.length}</p>
+                    <p class="text-xs text-slate-600 dark:text-slate-400">Relationships</p>
+                </div>
+                <div class="glass-card rounded-lg p-3 text-center">
+                    <p class="text-2xl font-bold ${ingestData.is_fraudulent ? 'text-red-600' : 'text-green-600'}">${ingestData.is_fraudulent ? 'FRAUD' : 'CLEAN'}</p>
+                    <p class="text-xs text-slate-600 dark:text-slate-400">Status</p>
+                </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="glass-card rounded-lg p-3 mb-4">
+                <p class="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Legend:</p>
+                <div class="flex flex-wrap gap-3 text-xs">
+                    <div class="flex items-center gap-1.5">
+                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                        <span class="text-slate-600 dark:text-slate-400">Claim</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <div class="w-3 h-3 rounded-full bg-blue-500"></div>
+                        <span class="text-slate-600 dark:text-slate-400">Person</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        <span class="text-slate-600 dark:text-slate-400">Policy</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                        <span class="text-slate-600 dark:text-slate-400">Agent/Vendor</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <div class="w-3 h-3 rounded-full bg-purple-500"></div>
+                        <span class="text-slate-600 dark:text-slate-400">SSN/Address</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cytoscape Container -->
+            <div id="cy" class="flex-1 glass-card rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900" style="min-height: 500px;"></div>
+
+            <!-- Node Info Panel -->
+            <div id="nodeInfo" class="hidden mt-4 glass-card rounded-lg p-4">
+                <h4 class="text-sm font-bold text-slate-900 dark:text-white mb-2">Selected Node</h4>
+                <div id="nodeInfoContent" class="text-xs text-slate-600 dark:text-slate-400"></div>
             </div>
         </div>
     `;
     
     graphContent.innerHTML = html;
-    graphContent.classList.remove('hidden');
+    graphContent.classList.remove('hidden', 'flex', 'items-center', 'justify-center');
+    
+    // Initialize Cytoscape after DOM is ready
+    setTimeout(() => {
+        initializeCytoscape(graphData);
+    }, 100);
+}
+
+function initializeCytoscape(graphData) {
+    // Load Cytoscape.js if not already loaded
+    if (typeof cytoscape === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js';
+        script.onload = () => renderGraph(graphData);
+        document.head.appendChild(script);
+    } else {
+        renderGraph(graphData);
+    }
+}
+
+function renderGraph(graphData) {
+    // Get node color based on label
+    function getNodeColor(label) {
+        const colors = {
+            'Claim': '#ef4444',      // red
+            'Person': '#3b82f6',     // blue
+            'Policy': '#10b981',     // green
+            'Agent': '#f59e0b',      // yellow
+            'Vendor': '#f59e0b',     // yellow
+            'SSN': '#a855f7',        // purple
+            'Address': '#a855f7',    // purple
+            'Asset': '#14b8a6'       // teal
+        };
+        return colors[label] || '#6b7280'; // gray default
+    }
+
+    // Transform data to Cytoscape format
+    const elements = [];
+    
+    // Add nodes
+    graphData.nodes.forEach(node => {
+        elements.push({
+            group: 'nodes',
+            data: {
+                id: node.id,
+                label: node.label,
+                ...node.data
+            },
+            classes: node.label.toLowerCase()
+        });
+    });
+    
+    // Add edges
+    graphData.edges.forEach(edge => {
+        elements.push({
+            group: 'edges',
+            data: {
+                id: `${edge.source}-${edge.target}`,
+                source: edge.source,
+                target: edge.target,
+                label: edge.label,
+                ...edge.data
+            }
+        });
+    });
+
+    // Initialize Cytoscape
+    const cy = cytoscape({
+        container: document.getElementById('cy'),
+        elements: elements,
+        style: [
+            {
+                selector: 'node',
+                style: {
+                    'background-color': function(ele) {
+                        return getNodeColor(ele.data('label'));
+                    },
+                    'label': function(ele) {
+                        // Show name or id
+                        return ele.data('name') || 
+                               ele.data('customer_id') || 
+                               ele.data('transaction_id') ||
+                               ele.data('policy_number') ||
+                               ele.data('value') ||
+                               ele.id();
+                    },
+                    'color': '#fff',
+                    'text-outline-color': function(ele) {
+                        return getNodeColor(ele.data('label'));
+                    },
+                    'text-outline-width': 2,
+                    'font-size': '12px',
+                    'width': 40,
+                    'height': 40,
+                    'text-valign': 'bottom',
+                    'text-halign': 'center',
+                    'text-margin-y': 5
+                }
+            },
+            {
+                selector: 'edge',
+                style: {
+                    'width': 2,
+                    'line-color': '#94a3b8',
+                    'target-arrow-color': '#94a3b8',
+                    'target-arrow-shape': 'triangle',
+                    'curve-style': 'bezier',
+                    'label': 'data(label)',
+                    'font-size': '10px',
+                    'text-rotation': 'autorotate',
+                    'text-margin-y': -10,
+                    'color': '#64748b'
+                }
+            },
+            {
+                selector: ':selected',
+                style: {
+                    'border-width': 3,
+                    'border-color': '#f59e0b'
+                }
+            }
+        ],
+        layout: {
+            name: 'cose',
+            animate: true,
+            animationDuration: 500,
+            nodeRepulsion: 4000,
+            idealEdgeLength: 100,
+            edgeElasticity: 100,
+            nestingFactor: 1.2
+        }
+    });
+
+    // Store reference globally
+    window.currentGraph = cy;
+
+    // Node click handler
+    cy.on('tap', 'node', function(evt) {
+        const node = evt.target;
+        const data = node.data();
+        
+        // Show info panel
+        const infoPanel = document.getElementById('nodeInfo');
+        const infoContent = document.getElementById('nodeInfoContent');
+        
+        let html = `<p class="font-bold text-slate-900 dark:text-white mb-2">${data.label}: ${data.id}</p>`;
+        html += '<div class="space-y-1">';
+        
+        Object.keys(data).forEach(key => {
+            if (key !== 'id' && key !== 'label') {
+                html += `<div><span class="font-semibold">${key}:</span> ${data[key]}</div>`;
+            }
+        });
+        
+        html += '</div>';
+        
+        infoContent.innerHTML = html;
+        infoPanel.classList.remove('hidden');
+    });
+
+    // Reset button
+    document.getElementById('resetGraphBtn').addEventListener('click', () => {
+        cy.layout({
+            name: 'cose',
+            animate: true,
+            animationDuration: 500,
+            nodeRepulsion: 4000,
+            idealEdgeLength: 100
+        }).run();
+    });
+
+    // Fit button
+    document.getElementById('fitGraphBtn').addEventListener('click', () => {
+        cy.fit(null, 50);
+    });
+
+    // Initial fit
+    cy.fit(null, 50);
 }
 
 // Populate Result Tab with ALL Analysis Details
