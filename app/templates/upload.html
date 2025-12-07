@@ -635,7 +635,7 @@
             document.getElementById('metric-cost').innerText = "$0.00";
         }
         document.getElementById('metric-tokens').innerText = extraction.usage ? extraction.usage.total_tokens : "0";
-        document.getElementById('metric-time').innerText = timings.total_ms ? `${(timings.total_ms / 1000).toFixed(2)}s` : `${duration}s`;
+        document.getElementById('metric-time').innerText = `${duration}s`;
 
         // 2. Classification
         document.getElementById('class-type').innerText = (extraction.doc_type || extractedPayload.doc_type || "Unknown").toUpperCase();

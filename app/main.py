@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, Response, stream_with_context
 import os
 import requests
 from dotenv import load_dotenv
 import random
 from datetime import datetime, timedelta
+import json
 
 load_dotenv()
 
@@ -202,6 +203,87 @@ def api_fraud_analyze():
             "error": "Fraud analysis failed",
             "details": str(e)
         }), 503
+
+@app.route('/api/monitoring/metrics')
+def api_monitoring_metrics():
+    """Fetch monitoring metrics from backend and expose to UI"""
+    fallback = {
+        "tokens_used": 0,
+        "api_cost": 0.0,
+        "avg_time": 0.0,
+        "total_requests": 0,
+        "fallback": True
+    }
+
+    try:
+        resp = requests.get(f"{BACKEND_URL}/v1/monitoring/metrics", timeout=15)
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except requests.exceptions.RequestException as e:
+        print(f"Monitoring metrics failed: {e}")
+        return jsonify(fallback)
+
+@app.route('/api/monitoring/token_usage')
+def api_monitoring_token_usage():
+    """Fetch token usage timeline for monitoring chart"""
+    days = request.args.get('days', default=7, type=int)
+    fallback_timeline = []
+    total_tokens = 0
+    total_cost = 0.0
+    for hour in range(days * 24):
+        tokens = random.randint(500, 2500)
+        cost = round(tokens * 0.00005, 4)
+        total_tokens += tokens
+        total_cost += cost
+        timestamp = (datetime.utcnow() - timedelta(hours=(days * 24 - hour))).strftime("%Y-%m-%d %H:00:00")
+        fallback_timeline.append({
+            "timestamp": timestamp,
+            "tokens": tokens,
+            "cost": cost
+        })
+
+    fallback = {
+        "timeline": fallback_timeline,
+        "metadata": {
+            "days": days,
+            "data_points": len(fallback_timeline),
+            "total_tokens": total_tokens,
+            "total_cost": round(total_cost, 4)
+        },
+        "fallback": True
+    }
+
+    try:
+        resp = requests.get(f"{BACKEND_URL}/v1/monitoring/token-usage", params={"days": days}, timeout=30)
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except requests.exceptions.RequestException as e:
+        print(f"Monitoring token usage failed: {e}")
+        return jsonify(fallback)
+
+@app.route('/api/monitoring/logs')
+def api_monitoring_logs():
+    """Fetch recent logs from backend (polling-based)"""
+    limit = request.args.get('limit', default=50, type=int)
+    
+    fallback = {
+        "logs": [{
+            "timestamp": datetime.utcnow().isoformat(),
+            "level": "INFO",
+            "message": "No logs available",
+            "location": ""
+        }],
+        "count": 1,
+        "fallback": True
+    }
+
+    try:
+        resp = requests.get(f"{BACKEND_URL}/v1/monitoring/logs", params={"limit": limit}, timeout=10)
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except requests.exceptions.RequestException as e:
+        print(f"Monitoring logs failed: {e}")
+        return jsonify(fallback)
 
 
 @app.route('/api/chat', methods=['POST'])
