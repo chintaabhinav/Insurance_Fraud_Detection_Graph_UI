@@ -11,25 +11,94 @@ app = Flask(__name__)
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080")
 
 # --- Mock Data Helpers (Keep for Dashboard for now) ---
-def get_dashboard_data():
-    return {
-        "total_claims": 1245,
-        "fraud_claims": 84,
-        "fraud_value": 450000,
-        "proc_time": 1.2,
-        "timeline": {
-            "labels": [(datetime.today() - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(29, -1, -1)],
-            "legit": [random.randint(30, 60) for _ in range(30)],
-            "fraud": [random.randint(0, 5) for _ in range(30)]
+def get_dashboard_data(timeline_days=None, alerts_limit=None):
+    """Fetch dashboard analytics from backend with graceful fallback."""
+    params = {}
+    if timeline_days:
+        params["timeline_days"] = timeline_days
+    if alerts_limit:
+        params["alerts_limit"] = alerts_limit
+
+    fallback_timeline_days = timeline_days or 30
+    fallback_timeline = []
+    for i in range(fallback_timeline_days - 1, -1, -1):
+        fallback_timeline.append({
+            "date": (datetime.today() - timedelta(days=i)).strftime("%Y-%m-%d"),
+            "legitimate": random.randint(30, 60),
+            "fraudulent": random.randint(0, 5)
+        })
+
+    fallback_data = {
+        "metrics": {
+            "total_claims": 1245,
+            "fraud_detected": 84,
+            "estimated_fraud_value": 450000.0,
+            "avg_processing_time": 1.2
+        },
+        "charts": {
+            "claims_timeline": fallback_timeline,
+            "risk_distribution": {
+                "low": 1050,
+                "medium": 111,
+                "high": 84
+            }
+        },
+        "high_risk_alerts": [
+            {
+                "claim_id": "CLM-9921",
+                "type": "Auto Accident",
+                "risk_score": 0.92,
+                "date": (datetime.today() - timedelta(days=2)).strftime("%Y-%m-%d"),
+                "status": "Review"
+            },
+            {
+                "claim_id": "CLM-9918",
+                "type": "Medical",
+                "risk_score": 0.65,
+                "date": (datetime.today() - timedelta(days=3)).strftime("%Y-%m-%d"),
+                "status": "Review"
+            }
+        ],
+        "metadata": {
+            "timeline_days": fallback_timeline_days,
+            "alerts_shown": 2,
+            "data_sources": {
+                "graph": "neo4j",
+                "metrics": "snowflake"
+            }
         }
     }
+
+    try:
+        resp = requests.get(f"{BACKEND_URL}/v1/dashboard", params=params, timeout=30)
+        resp.raise_for_status()
+        payload = resp.json()
+
+        # Merge payload with fallback to guarantee template expectations
+        return {
+            "metrics": {**fallback_data["metrics"], **payload.get("metrics", {})},
+            "charts": {
+                "claims_timeline": payload.get("charts", {}).get("claims_timeline", fallback_data["charts"]["claims_timeline"]),
+                "risk_distribution": {
+                    **fallback_data["charts"]["risk_distribution"],
+                    **payload.get("charts", {}).get("risk_distribution", {})
+                }
+            },
+            "high_risk_alerts": payload.get("high_risk_alerts", fallback_data["high_risk_alerts"]),
+            "metadata": {**fallback_data["metadata"], **payload.get("metadata", {})}
+        }
+    except requests.exceptions.RequestException as e:
+        print(f"Dashboard backend failed: {e}")
+        return fallback_data
 
 # --- Routes ---
 
 
 @app.route('/')
 def dashboard():
-    data = get_dashboard_data()
+    timeline_days = request.args.get('timeline_days', type=int)
+    alerts_limit = request.args.get('alerts_limit', type=int)
+    data = get_dashboard_data(timeline_days, alerts_limit)
     return render_template('dashboard.html', page='dashboard', data=data)
 
 @app.route('/upload')
