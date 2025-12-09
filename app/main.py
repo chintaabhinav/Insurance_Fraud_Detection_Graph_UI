@@ -288,19 +288,38 @@ def api_monitoring_logs():
 
 @app.route('/api/chat', methods=['POST'])
 def api_chat():
-    msg = request.json.get('message', '')
-    url = f"{BACKEND_URL}/v1/chat"
+    payload = request.get_json() or {}
+    mode = payload.get('mode', 'rag')
+    user_message = payload.get('message', '').strip()
+    session_id = payload.get('session_id')
+    include_history = payload.get('include_history', True)
+
+    if not user_message:
+        return jsonify({"error": "Message is required"}), 400
+
+    if mode == 'graph':
+        url = f"{BACKEND_URL}/v1/graph-chat/query"
+    else:
+        url = f"{BACKEND_URL}/v1/rag/query"
+
+    request_body = {
+        "user_message": user_message,
+        "include_history": include_history
+    }
+    if session_id:
+        request_body["session_id"] = session_id
     
     try:
-        resp = requests.post(url, json={"query": msg}, timeout=30)
+        resp = requests.post(url, json=request_body, timeout=60)
         resp.raise_for_status()
         return jsonify(resp.json())
     except requests.exceptions.RequestException as e:
         print(f"Chat backend failed: {e}")
-        # Fallback Mock
         return jsonify({
-            "response": "I'm having trouble connecting to the brain (Backend). <br><i>Error: Connection refused</i>"
-        })
+            "success": False,
+            "answer": "I'm having trouble connecting to the retrieval service right now.",
+            "error": str(e)
+        }), 503
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
