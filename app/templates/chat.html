@@ -70,58 +70,47 @@
     const SUGGESTION_SETS = {
         rag: [
             {
-                title: 'Specific Claim Details',
+                title: 'Claim Identification',
                 items: [
-                    "Tell me who is the agent for the claim with transaction ID TXN99900001",
-                    "What is the claim amount for TXN99900005?",
-                    "What is the diagnosis code for claim TXN99900001?",
-                    "Show me the incident details for transaction TXN99900003"
+                    "What is the agent ID for claim TXN55500001?",
+                    "When was claim TXN55500001 filed?",
                 ]
             },
             {
-                title: 'Fraud Analysis Results',
+                title: 'Locations & Summaries',
                 items: [
-                    "Why was claim TXN99900001 flagged as fraudulent?",
-                    "What fraud patterns were detected in claim TXN99900002?",
-                    "What are the red flags for claim TXN99900001?",
-                    "What is the recommendation for claim TXN99900002?"
+                    "Where did incident TXN55500001 occur?",
+                    "What are the customer name and claim amount for TXN55500001?"
                 ]
             },
             {
-                title: 'Document Content',
+                title: 'Fraud & Amount Analysis',
                 items: [
-                    "What documents are required for a health insurance claim?",
-                    "Summarize all the claims that have been uploaded",
-                    "Show me all health insurance claims that were flagged as fraudulent"
+                    "What is the amount and when was the claim filed for TXN55500001?",
+                    "How much is the claim amount for TXN55500001?",
                 ]
             }
         ],
         graph: [
             {
-                title: 'Fraud Pattern Detection',
+                title: 'Fraud & Risk Detection',
                 items: [
-                    "Show me claims with shared SSNs",
-                    "Find agent-vendor collusion patterns",
-                    "Which vehicles have been claimed multiple times?",
-                    "Who are the most frequent claimants?"
+                    "Get me the details of potential fraud rings linked to claim TXN00000001",
+                    "Check for collusion between Agent AGENT00413 and Vendor VNDR00556"
                 ]
             },
             {
-                title: 'High-Risk Claims',
+                title: 'Customer & Network Analysis',
                 items: [
-                    "Show me high risk claims",
-                    "Find claims over $50,000",
-                    "What are the largest pending claims?",
-                    "Show me major severity claims"
+                    "How many claims were filed by Christopher Demarest?",
+                    "Who filed claim TXN00000001?"
                 ]
             },
             {
-                title: 'Network & Stats',
+                title: 'Claim Statistics',
                 items: [
-                    "Find the fraud ring around customer CUST123",
-                    "Which agents handle the most claims?",
-                    "How many claims are in the graph?",
-                    "What percentage of claims are fraudulent?"
+                    "What is the claim amount for TXN00000002?",
+                    "What is the average claim amount?"
                 ]
             }
         ]
