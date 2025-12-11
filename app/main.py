@@ -151,5 +151,24 @@ def api_chat():
             "response": "I'm having trouble connecting to the brain (Backend). <br><i>Error: Connection refused</i>"
         })
 
+@app.route('/api/evaluate', methods=['POST'])
+def api_evaluate():
+    """Run model evaluation on sample claims"""
+    try:
+        data = request.get_json()
+        sample_size = data.get('sample_size', 500)
+        
+        url = f"{BACKEND_URL}/v1/evaluate"
+        
+        resp = requests.post(url, params={'sample_size': sample_size}, timeout=300)
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except requests.exceptions.RequestException as e:
+        print(f"Evaluation failed: {e}")
+        return jsonify({
+            "error": "Evaluation failed",
+            "details": str(e)
+        }), 503
+
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
