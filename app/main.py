@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, Response, stream_with_context
 import os
 import requests
 from dotenv import load_dotenv
 import random
 from datetime import datetime, timedelta
+import json
 
 load_dotenv()
 
@@ -11,25 +12,94 @@ app = Flask(__name__)
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080")
 
 # --- Mock Data Helpers (Keep for Dashboard for now) ---
-def get_dashboard_data():
-    return {
-        "total_claims": 1245,
-        "fraud_claims": 84,
-        "fraud_value": 450000,
-        "proc_time": 1.2,
-        "timeline": {
-            "labels": [(datetime.today() - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(29, -1, -1)],
-            "legit": [random.randint(30, 60) for _ in range(30)],
-            "fraud": [random.randint(0, 5) for _ in range(30)]
+def get_dashboard_data(timeline_days=None, alerts_limit=None):
+    """Fetch dashboard analytics from backend with graceful fallback."""
+    params = {}
+    if timeline_days:
+        params["timeline_days"] = timeline_days
+    if alerts_limit:
+        params["alerts_limit"] = alerts_limit
+
+    fallback_timeline_days = timeline_days or 30
+    fallback_timeline = []
+    for i in range(fallback_timeline_days - 1, -1, -1):
+        fallback_timeline.append({
+            "date": (datetime.today() - timedelta(days=i)).strftime("%Y-%m-%d"),
+            "legitimate": random.randint(30, 60),
+            "fraudulent": random.randint(0, 5)
+        })
+
+    fallback_data = {
+        "metrics": {
+            "total_claims": 1245,
+            "fraud_detected": 84,
+            "estimated_fraud_value": 450000.0,
+            "avg_processing_time": 1.2
+        },
+        "charts": {
+            "claims_timeline": fallback_timeline,
+            "risk_distribution": {
+                "low": 1050,
+                "medium": 111,
+                "high": 84
+            }
+        },
+        "high_risk_alerts": [
+            {
+                "claim_id": "CLM-9921",
+                "type": "Auto Accident",
+                "risk_score": 0.92,
+                "date": (datetime.today() - timedelta(days=2)).strftime("%Y-%m-%d"),
+                "status": "Review"
+            },
+            {
+                "claim_id": "CLM-9918",
+                "type": "Medical",
+                "risk_score": 0.65,
+                "date": (datetime.today() - timedelta(days=3)).strftime("%Y-%m-%d"),
+                "status": "Review"
+            }
+        ],
+        "metadata": {
+            "timeline_days": fallback_timeline_days,
+            "alerts_shown": 2,
+            "data_sources": {
+                "graph": "neo4j",
+                "metrics": "snowflake"
+            }
         }
     }
+
+    try:
+        resp = requests.get(f"{BACKEND_URL}/v1/dashboard", params=params, timeout=30)
+        resp.raise_for_status()
+        payload = resp.json()
+
+        # Merge payload with fallback to guarantee template expectations
+        return {
+            "metrics": {**fallback_data["metrics"], **payload.get("metrics", {})},
+            "charts": {
+                "claims_timeline": payload.get("charts", {}).get("claims_timeline", fallback_data["charts"]["claims_timeline"]),
+                "risk_distribution": {
+                    **fallback_data["charts"]["risk_distribution"],
+                    **payload.get("charts", {}).get("risk_distribution", {})
+                }
+            },
+            "high_risk_alerts": payload.get("high_risk_alerts", fallback_data["high_risk_alerts"]),
+            "metadata": {**fallback_data["metadata"], **payload.get("metadata", {})}
+        }
+    except requests.exceptions.RequestException as e:
+        print(f"Dashboard backend failed: {e}")
+        return fallback_data
 
 # --- Routes ---
 
 
 @app.route('/')
 def dashboard():
-    data = get_dashboard_data()
+    timeline_days = request.args.get('timeline_days', type=int)
+    alerts_limit = request.args.get('alerts_limit', type=int)
+    data = get_dashboard_data(timeline_days, alerts_limit)
     return render_template('dashboard.html', page='dashboard', data=data)
 
 @app.route('/upload')
@@ -134,22 +204,122 @@ def api_fraud_analyze():
             "details": str(e)
         }), 503
 
+@app.route('/api/monitoring/metrics')
+def api_monitoring_metrics():
+    """Fetch monitoring metrics from backend and expose to UI"""
+    fallback = {
+        "tokens_used": 0,
+        "api_cost": 0.0,
+        "avg_time": 0.0,
+        "total_requests": 0,
+        "fallback": True
+    }
+
+    try:
+        resp = requests.get(f"{BACKEND_URL}/v1/monitoring/metrics", timeout=15)
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except requests.exceptions.RequestException as e:
+        print(f"Monitoring metrics failed: {e}")
+        return jsonify(fallback)
+
+@app.route('/api/monitoring/token_usage')
+def api_monitoring_token_usage():
+    """Fetch token usage timeline for monitoring chart"""
+    days = request.args.get('days', default=7, type=int)
+    fallback_timeline = []
+    total_tokens = 0
+    total_cost = 0.0
+    for hour in range(days * 24):
+        tokens = random.randint(500, 2500)
+        cost = round(tokens * 0.00005, 4)
+        total_tokens += tokens
+        total_cost += cost
+        timestamp = (datetime.utcnow() - timedelta(hours=(days * 24 - hour))).strftime("%Y-%m-%d %H:00:00")
+        fallback_timeline.append({
+            "timestamp": timestamp,
+            "tokens": tokens,
+            "cost": cost
+        })
+
+    fallback = {
+        "timeline": fallback_timeline,
+        "metadata": {
+            "days": days,
+            "data_points": len(fallback_timeline),
+            "total_tokens": total_tokens,
+            "total_cost": round(total_cost, 4)
+        },
+        "fallback": True
+    }
+
+    try:
+        resp = requests.get(f"{BACKEND_URL}/v1/monitoring/token-usage", params={"days": days}, timeout=30)
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except requests.exceptions.RequestException as e:
+        print(f"Monitoring token usage failed: {e}")
+        return jsonify(fallback)
+
+@app.route('/api/monitoring/logs')
+def api_monitoring_logs():
+    """Fetch recent logs from backend (polling-based)"""
+    limit = request.args.get('limit', default=50, type=int)
+    
+    fallback = {
+        "logs": [{
+            "timestamp": datetime.utcnow().isoformat(),
+            "level": "INFO",
+            "message": "No logs available",
+            "location": ""
+        }],
+        "count": 1,
+        "fallback": True
+    }
+
+    try:
+        resp = requests.get(f"{BACKEND_URL}/v1/monitoring/logs", params={"limit": limit}, timeout=10)
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except requests.exceptions.RequestException as e:
+        print(f"Monitoring logs failed: {e}")
+        return jsonify(fallback)
+
 
 @app.route('/api/chat', methods=['POST'])
 def api_chat():
-    msg = request.json.get('message', '')
-    url = f"{BACKEND_URL}/v1/chat"
+    payload = request.get_json() or {}
+    mode = payload.get('mode', 'rag')
+    user_message = payload.get('message', '').strip()
+    session_id = payload.get('session_id')
+    include_history = payload.get('include_history', True)
+
+    if not user_message:
+        return jsonify({"error": "Message is required"}), 400
+
+    if mode == 'graph':
+        url = f"{BACKEND_URL}/v1/graph-chat/query"
+    else:
+        url = f"{BACKEND_URL}/v1/rag/query"
+
+    request_body = {
+        "user_message": user_message,
+        "include_history": include_history
+    }
+    if session_id:
+        request_body["session_id"] = session_id
     
     try:
-        resp = requests.post(url, json={"query": msg}, timeout=30)
+        resp = requests.post(url, json=request_body, timeout=60)
         resp.raise_for_status()
         return jsonify(resp.json())
     except requests.exceptions.RequestException as e:
         print(f"Chat backend failed: {e}")
-        # Fallback Mock
         return jsonify({
-            "response": "I'm having trouble connecting to the brain (Backend). <br><i>Error: Connection refused</i>"
-        })
+            "success": False,
+            "answer": "I'm having trouble connecting to the retrieval service right now.",
+            "error": str(e)
+        }), 503
 
 @app.route('/api/evaluate', methods=['POST'])
 def api_evaluate():
