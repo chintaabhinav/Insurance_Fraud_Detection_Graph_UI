@@ -149,7 +149,48 @@ After analysis, explore the tabs:
 
 ---
 
-## 6. API Routes
+## 6. Sample Outputs
+
+### Dashboard Overview
+
+![Dashboard Overview](/Outputs/Dashboard.png)
+
+The main dashboard provides real-time fraud analytics and claim statistics
+
+### Upload & Detect Page
+
+**Live Document Processing Interface**
+
+![Upload & Detect Page](/Outputs/Upload.png)
+
+This screenshot captures the system actively analyzing a life insurance claim for fraud detection
+
+### Fraud Detection Result - High Risk Case
+
+![Fraud Detection Result](/Outputs/Fruad_Result.png)
+
+### AI Chatbot Interface
+
+![AI Chatbot Interface](/Outputs/Chatbot.png)
+
+The chatbot provides an intelligent interface to query the Neo4j knowledge graph using natural language.
+
+### System Monitoring
+
+![System Monitoring](/Outputs/Monitoring.png)
+
+The monitoring page provides real-time system performance metrics and LLM usage statistics.
+
+### Model Evaluation
+
+![Model Evaluation](/Outputs/Evaluation_1.png)
+![Model Evaluation](/Outputs/Evaluation_2.png)
+
+The evaluation page provides detailed metrics and visualizations for model performance and accuracy.
+
+
+
+## 7. API Routes
 
 The frontend proxies requests to the backend API:
 
@@ -162,7 +203,7 @@ The frontend proxies requests to the backend API:
 
 ---
 
-## 7. Configuration
+## 8. Configuration
 
 ### Backend URL
 
@@ -184,7 +225,7 @@ If you change the frontend port, update the backend's CORS settings in `app/main
 
 ---
 
-## 8. Common Troubleshooting
+## 9. Common Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
@@ -196,7 +237,7 @@ If you change the frontend port, update the backend's CORS settings in `app/main
 
 ---
 
-## 9. Development
+## 10. Development
 
 ### File Structure
 
@@ -223,7 +264,7 @@ def newpage():
 
 ---
 
-## 10. Production Deployment (Optional)
+## 11. Production Deployment (Optional)
 
 ### Using Gunicorn (Linux/Mac)
 
@@ -259,7 +300,7 @@ docker run -p 5001:5001 --env-file .env fraud-frontend
 
 ---
 
-## 11. Tech Stack Details
+## 12. Tech Stack Details
 
 ### Frontend Technologies
 
@@ -281,7 +322,7 @@ docker run -p 5001:5001 --env-file .env fraud-frontend
 
 ---
 
-## 12. System Requirements
+## 13. System Requirements
 
 ### Minimum Requirements
 
@@ -300,7 +341,7 @@ requests>=2.31.0
 
 ---
 
-## 13. Contributing
+## 14. Contributing
 
 ### Development Workflow
 
@@ -318,7 +359,7 @@ requests>=2.31.0
 
 ---
 
-## 14. Support
+## 15. Support
 
 For issues or questions:
 
@@ -329,7 +370,7 @@ For issues or questions:
 
 ---
 
-## 15. License
+## 16. License
 
 MIT License
 
