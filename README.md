@@ -151,13 +151,13 @@ After analysis, explore the tabs:
 
 ## 6. Sample Outputs
 
-### Dashboard Overview
+### 6.1 Dashboard Overview
 
 ![Dashboard Overview](/Outputs/Dashboard.png)
 
 The main dashboard provides real-time fraud analytics and claim statistics
 
-### Upload & Detect Page
+### 6.2 Upload & Detect Page
 
 **Live Document Processing Interface**
 
@@ -165,23 +165,23 @@ The main dashboard provides real-time fraud analytics and claim statistics
 
 This screenshot captures the system actively analyzing a life insurance claim for fraud detection
 
-### Fraud Detection Result - High Risk Case
+### 6.3 Fraud Detection Result - High Risk Case
 
 ![Fraud Detection Result](/Outputs/Fruad_Result.png)
 
-### AI Chatbot Interface
+### 6.4 AI Chatbot Interface
 
 ![AI Chatbot Interface](/Outputs/Chatbot.png)
 
 The chatbot provides an intelligent interface to query the Neo4j knowledge graph using natural language.
 
-### System Monitoring
+### 6.5 System Monitoring
 
 ![System Monitoring](/Outputs/Monitoring.png)
 
 The monitoring page provides real-time system performance metrics and LLM usage statistics.
 
-### Model Evaluation
+### 6.6 Model Evaluation
 
 ![Model Evaluation](/Outputs/Evaluation_1.png)
 ![Model Evaluation](/Outputs/Evaluation_2.png)
